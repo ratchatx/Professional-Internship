@@ -1,9 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './NewRequestPage.css';
 
 const NewRequestPage = () => {
   const navigate = useNavigate();
+  const [hasExistingRequest, setHasExistingRequest] = useState(false);
+  const alertShown = useRef(false);
+  
+  useEffect(() => {
+    // Check if user is logged in
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      navigate('/login');
+      return;
+    }
+    const user = JSON.parse(userStr);
+
+    // Check for existing request
+    const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+    const userRequest = allRequests.find(req => req.userEmail === user.email);
+    
+    if (userRequest) {
+      if (!alertShown.current) {
+          alertShown.current = true;
+          setHasExistingRequest(true);
+          alert('คุณมีคำร้องที่ค้างอยู่ในระบบแล้ว ไม่สามารถยื่นเพิ่มได้จนกว่าแอดมินจะดำเนินการ');
+          navigate('/dashboard');
+      }
+    }
+  }, [navigate]);
+
   const [formData, setFormData] = useState({
     companyName: '',
     position: '',
@@ -26,9 +52,27 @@ const NewRequestPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('New internship request:', formData);
+    if (hasExistingRequest) return;
+
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    const newRequest = {
+      id: Date.now(),
+      ...formData,
+      status: 'รออนุมัติ',
+      submittedDate: new Date().toISOString().split('T')[0],
+      userEmail: user.email,
+      studentName: user.name,
+      type: 'ฝึกงาน' // Default type
+    };
+
+    const existingRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+    const updatedRequests = [...existingRequests, newRequest];
+    localStorage.setItem('requests', JSON.stringify(updatedRequests));
+
+    console.log('New internship request:', newRequest);
     alert('ยื่นคำร้องสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ');
-    navigate('/dashboard');
+    navigate('/dashboard/my-requests');
   };
 
   return (

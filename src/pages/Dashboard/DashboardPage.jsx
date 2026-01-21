@@ -1,56 +1,58 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
 import './DashboardPage.css';
+import './ProcessTracker.css';
 
 const DashboardPage = () => {
   const navigate = useNavigate();
-  const [studentName] = useState('นายสมชาย ใจดี'); // This would come from auth
+  const [studentName, setStudentName] = useState('');
+  const [internshipRequests, setInternshipRequests] = useState([]);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user.role !== 'student') {
+         navigate('/admin-dashboard'); 
+         return;
+      }
+      setStudentName(user.name);
+
+      // Load requests for this user
+      const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      const userRequests = allRequests.filter(req => req.userEmail === user.email);
+      setInternshipRequests(userRequests);
+    } else {
+      navigate('/login');
+    }
+  }, [navigate]);
 
   const handleLogout = () => {
-    console.log('Logging out...');
+    localStorage.removeItem('user');
     navigate('/login');
   };
 
-  // ข้อมูลคำร้องตัวอย่าง (จริงจะมาจาก API)
-  const internshipRequests = [
-    { 
-      id: 1, 
-      company: 'บริษัท ABC จำกัด', 
-      position: 'โปรแกรมเมอร์', 
-      status: 'รออนุมัติ',
-      date: '2026-01-05',
-      color: '#f093fb'
-    },
-    { 
-      id: 2, 
-      company: 'บริษัท XYZ Tech', 
-      position: 'Web Developer', 
-      status: 'อนุมัติแล้ว',
-      date: '2025-12-20',
-      color: '#43e97b'
-    },
-    { 
-      id: 3, 
-      company: 'สถาบัน Digital Solutions', 
-      position: 'UI/UX Designer', 
-      status: 'ไม่อนุมัติ',
-      date: '2025-12-15',
-      color: '#fa709a'
-    }
-  ];
+  const currentRequest = internshipRequests[0];
+  const currentStep = !currentRequest ? 0 : 
+    currentRequest.status === 'รออนุมัติ' ? 1 :
+    currentRequest.status === 'ไม่อนุมัติ' ? 3 : 
+    2; // อนุมัติแล้ว
 
-  const stats = [
-    { title: 'คำร้องทั้งหมด', value: internshipRequests.length, icon: '📝', color: '#667eea' },
-    { title: 'รออนุมัติ', value: internshipRequests.filter(r => r.status === 'รออนุมัติ').length, icon: '⏳', color: '#f093fb' },
-    { title: 'อนุมัติแล้ว', value: internshipRequests.filter(r => r.status === 'อนุมัติแล้ว').length, icon: '✅', color: '#43e97b' },
-    { title: 'ไม่อนุมัติ', value: internshipRequests.filter(r => r.status === 'ไม่อนุมัติ').length, icon: '❌', color: '#fa709a' }
+  const steps = [
+    { title: 'ส่งคำร้อง', icon: '📝' },
+    { title: 'รออนุมัติ', icon: '⏳' },
+    { title: 'อนุมัติแล้ว', icon: '✅' },
+    { title: 'ออกฝึกงาน', icon: '🏢' },
+    { title: 'ฝึกงานเสร็จแล้ว', icon: '🎓' }
   ];
 
   const getStatusBadge = (status) => {
     const statusStyles = {
       'รออนุมัติ': { bg: '#fff3cd', color: '#856404' },
       'อนุมัติแล้ว': { bg: '#d4edda', color: '#155724' },
-      'ไม่อนุมัติ': { bg: '#f8d7da', color: '#721c24' }
+      'ไม่อนุมัติ': { bg: '#f8d7da', color: '#721c24' },
+      'ออกฝึกงาน': { bg: '#c3dafe', color: '#434190' },
+      'ฝึกงานเสร็จแล้ว': { bg: '#fed7e2', color: '#702459' }
     };
     return statusStyles[status] || { bg: '#e2e3e5', color: '#383d41' };
   };
@@ -70,7 +72,7 @@ const DashboardPage = () => {
             <span className="nav-icon">➕</span>
             <span>ยื่นคำร้องใหม่</span>
           </Link>
-          <Link to="/dashboard/requests" className="nav-item">
+          <Link to="/dashboard/my-requests" className="nav-item">
             <span className="nav-icon">📝</span>
             <span>คำร้องของฉัน</span>
           </Link>
@@ -101,18 +103,122 @@ const DashboardPage = () => {
           </Link>
         </header>
 
-        <div className="stats-grid">
-          {stats.map((stat, index) => (
-            <div key={index} className="stat-card" style={{ borderTop: `4px solid ${stat.color}` }}>
-              <div className="stat-icon" style={{ background: `${stat.color}20` }}>
-                {stat.icon}
-              </div>
-              <div className="stat-info">
-                <p className="stat-title">{stat.title}</p>
-                <h3 className="stat-value">{stat.value}</h3>
+        <div className="status-tracker-container">
+          <h2>📌 สถานะคำร้องปัจจุบัน</h2>
+          {currentRequest ? (
+            <div className="circular-tracker-wrapper">
+              <div className="circular-tracker">
+                <svg className="progress-ring" width="300" height="300">
+                  <circle
+                    className="progress-ring__circle-bg"
+                    stroke="#e2e8f0"
+                    strokeWidth="8"
+                    fill="transparent"
+                    r="120"
+                    cx="150"
+                    cy="150"
+                  />
+                  <circle
+                    className="progress-ring__circle"
+                    stroke={currentRequest.status === 'ไม่อนุมัติ' ? '#fa709a' : '#667eea'}
+                    strokeWidth="8"
+                    fill="transparent"
+                    r="120"
+                    cx="150"
+                    cy="150"
+                    style={{
+                       strokeDasharray: `${2 * Math.PI * 120}`,
+                       strokeDashoffset: (() => {
+                          const r = 120;
+                          const c = 2 * Math.PI * r;
+                          const s = currentRequest.status;
+                          let progress = 0;
+                          if (s === 'รออนุมัติ') progress = 0.25;
+                          else if (s === 'อนุมัติแล้ว') progress = 0.50;
+                          else if (s === 'ออกฝึกงาน') progress = 0.75;
+                          else if (s === 'ฝึกงานเสร็จแล้ว') progress = 1.0;
+                          else if (s === 'ไม่อนุมัติ') progress = 0.25; // Stop at pending step but red
+                          return c - (progress * c);
+                       })()
+                    }}
+                  />
+                </svg>
+                
+                {/* Center Content */}
+                <div className="tracker-center-content">
+                    <div className="status-icon-large">
+                        {(() => {
+                            const step = steps.find(st => st.title === currentRequest.status) || steps[1]; // default to pending if matching fail
+                             if (currentRequest.status === 'ไม่อนุมัติ') return '❌';
+                             if (currentRequest.status === 'ส่งคำร้อง') return '📝';
+                             return step.icon;
+                        })()}
+                    </div>
+                    <h3>{currentRequest.status}</h3>
+                    <p>{currentRequest.companyName}</p>
+                </div>
+
+                {/* Steps Icons around the circle */}
+                {steps.map((step, index) => {
+                    // Calculate position
+                    // Start from top (-90deg). Total 360deg.
+                    // 5 steps. But last step completes the circle? 
+                    // Let's distribute evenly starting from top.
+                    // 0: 0deg(Top), 1: 72deg, 2: 144deg ...
+                    
+                    const totalSteps = 5;
+                    const angle = (index * (360 / totalSteps)) - 90; 
+                    const radius = 120;
+                    const x = 150 + radius * Math.cos((angle * Math.PI) / 180);
+                    const y = 150 + radius * Math.sin((angle * Math.PI) / 180);
+
+                    const s = currentRequest.status;
+                    let isActive = false; 
+                    let isCompleted = false;
+                    let isRejected = false;
+
+                    // Logic matches previous implementation but adapted for circle points
+                    if (index === 0) isCompleted = true; // Always submitted
+                    else if (index === 1) { // Waiting
+                        if (s === 'รออนุมัติ') isActive = true;
+                        else if (['อนุมัติแล้ว', 'ออกฝึกงาน', 'ฝึกงานเสร็จแล้ว'].includes(s)) isCompleted = true;
+                        else if (s === 'ไม่อนุมัติ') isRejected = true;
+                    } 
+                    else if (index === 2) { // Approved
+                        if (s === 'อนุมัติแล้ว') isActive = true;
+                        else if (['ออกฝึกงาน', 'ฝึกงานเสร็จแล้ว'].includes(s)) isCompleted = true;
+                    }
+                    else if (index === 3) { // Start
+                        if (s === 'ออกฝึกงาน') isActive = true;
+                        else if (['ฝึกงานเสร็จแล้ว'].includes(s)) isCompleted = true;
+                    }
+                    else if (index === 4) { // Finish
+                        if (s === 'ฝึกงานเสร็จแล้ว') isCompleted = true;
+                    }
+                    
+                    return (
+                        <div 
+                            key={index} 
+                            className={`circular-step-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${isRejected ? 'rejected' : ''}`}
+                            style={{ left: `${x}px`, top: `${y}px` }}
+                            title={step.title}
+                        >
+                            <div className="circular-step-icon">
+                                {isCompleted ? '✓' : isRejected ? '✗' : step.icon}
+                            </div>
+                            <span className="circular-step-label">{step.title}</span>
+                        </div>
+                    );
+                })}
               </div>
             </div>
-          ))}
+          ) : (
+             <div className="no-request-tracker">
+                <div className="step-circle start">🚀</div>
+                <p>คุณยังไม่มีคำร้องที่กำลังดำเนินการ</p>
+                <Link to="/dashboard/new-request" className="btn-primary-small">เริ่มยื่นคำร้อง</Link>
+             </div>
+          )}
         </div>
 
         <div className="content-section">
@@ -131,7 +237,7 @@ const DashboardPage = () => {
                   <div key={request.id} className="request-card">
                     <div className="request-header">
                       <div>
-                        <h3>{request.company}</h3>
+                        <h3>{request.companyName}</h3>
                         <p className="position">{request.position}</p>
                       </div>
                       <span 
@@ -146,7 +252,7 @@ const DashboardPage = () => {
                     </div>
                     <div className="request-footer">
                       <span className="request-date">
-                        📅 ยื่นเมื่อ: {new Date(request.date).toLocaleDateString('th-TH')}
+                        📅 ยื่นเมื่อ: {request.submittedDate}
                       </span>
                       <Link to={`/dashboard/request/${request.id}`} className="view-link">
                         ดูรายละเอียด →

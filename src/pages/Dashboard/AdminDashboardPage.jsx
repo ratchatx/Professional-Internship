@@ -1,76 +1,42 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
 import './AdminDashboardPage.css';
 
 const AdminDashboardPage = () => {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState('all'); // all, pending, approved, rejected
+  const [filter, setFilter] = useState('all');
+  const [adminName, setAdminName] = useState('');
+  const [allRequests, setAllRequests] = useState([]);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user.role !== 'admin') {
+         navigate('/dashboard'); 
+         return;
+      }
+      setAdminName(user.name);
+      
+      // Load requests
+      const storedRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      setAllRequests(storedRequests);
+    } else {
+      navigate('/login');
+    }
+  }, [navigate]);
 
   const handleLogout = () => {
-    console.log('Logging out...');
+    localStorage.removeItem('user');
     navigate('/login');
   };
 
-  // ข้อมูลคำร้องทั้งหมด (จริงจะมาจาก API)
-  const allRequests = [
-    {
-      id: 1,
-      studentId: '6512345001',
-      studentName: 'นายสมชาย ใจดี',
-      department: 'วิศวกรรมคอมพิวเตอร์',
-      company: 'บริษัท ABC จำกัด',
-      position: 'โปรแกรมเมอร์',
-      status: 'รออนุมัติ',
-      submittedDate: '2026-01-05',
-      startDate: '2026-02-01',
-      endDate: '2026-05-31'
-    },
-    {
-      id: 2,
-      studentId: '6512345002',
-      studentName: 'นางสาวมณี รักเรียน',
-      department: 'วิศวกรรมคอมพิวเตอร์',
-      company: 'บริษัท XYZ Tech',
-      position: 'Web Developer',
-      status: 'อนุมัติแล้ว',
-      submittedDate: '2025-12-20',
-      startDate: '2026-01-15',
-      endDate: '2026-04-30'
-    },
-    {
-      id: 3,
-      studentId: '6512345003',
-      studentName: 'นายวิชัย สุขใจ',
-      department: 'วิศวกรรมไฟฟ้า',
-      company: 'สถาบัน Digital Solutions',
-      position: 'UI/UX Designer',
-      status: 'ไม่อนุมัติ',
-      submittedDate: '2025-12-15',
-      startDate: '2026-02-01',
-      endDate: '2026-05-31'
-    },
-    {
-      id: 4,
-      studentId: '6512345004',
-      studentName: 'นางสาวสุดา พากเพียร',
-      department: 'บริหารธุรกิจ',
-      company: 'บริษัท DEF Enterprise',
-      position: 'Marketing Intern',
-      status: 'รออนุมัติ',
-      submittedDate: '2026-01-07',
-      startDate: '2026-03-01',
-      endDate: '2026-06-30'
-    }
-  ];
+  const filteredRequests = allRequests.filter(req => {
+    if (filter === 'all') return true;
+    return req.status === filter; // Using Thai status directly because saved that way
+  });
 
-  const filteredRequests = filter === 'all' 
-    ? allRequests 
-    : allRequests.filter(req => {
-        if (filter === 'pending') return req.status === 'รออนุมัติ';
-        if (filter === 'approved') return req.status === 'อนุมัติแล้ว';
-        if (filter === 'rejected') return req.status === 'ไม่อนุมัติ';
-        return true;
-      });
+
 
   const stats = [
     { 
@@ -99,16 +65,38 @@ const AdminDashboardPage = () => {
     }
   ];
 
+  const handleDelete = (id) => {
+    if (window.confirm('คุณต้องการลบคำร้องนี้ใช่หรือไม่? นักศึกษาจะสามารถยื่นคำร้องใหม่ได้หลังจากลบ')) {
+      const updatedRequests = allRequests.filter(req => req.id !== id);
+      setAllRequests(updatedRequests);
+      localStorage.setItem('requests', JSON.stringify(updatedRequests));
+    }
+  };
+
   const handleApprove = (requestId) => {
-    console.log('Approving request:', requestId);
-    alert(`อนุมัติคำร้องเลขที่ ${requestId} สำเร็จ`);
+    // ... logic to update status ...
+    // For now simplistic update
+    const updated = allRequests.map(r => r.id === requestId ? {...r, status: 'อนุมัติแล้ว'} : r);
+    setAllRequests(updated);
+    localStorage.setItem('requests', JSON.stringify(updated));
+    alert(`อนุมัติคำร้องเลขที่ ${requestId} สำเร็จ (สถานะ: อนุมัติแล้ว)`);
+  };
+
+  const handleUpdateStatus = (requestId, newStatus) => {
+     const updated = allRequests.map(r => r.id === requestId ? {...r, status: newStatus} : r);
+     setAllRequests(updated);
+     localStorage.setItem('requests', JSON.stringify(updated));
+     alert(`อัปเดตสถานะเป็น "${newStatus}" เรียบร้อยแล้ว`);
   };
 
   const handleReject = (requestId) => {
-    console.log('Rejecting request:', requestId);
+    // ... logic to update status ...
     const reason = prompt('กรุณาระบุเหตุผลที่ไม่อนุมัติ:');
     if (reason) {
-      alert(`ไม่อนุมัติคำร้องเลขที่ ${requestId}`);
+        const updated = allRequests.map(r => r.id === requestId ? {...r, status: 'ไม่อนุมัติ'} : r);
+        setAllRequests(updated);
+        localStorage.setItem('requests', JSON.stringify(updated));
+        alert(`ไม่อนุมัติคำร้องเลขที่ ${requestId}`);
     }
   };
 
@@ -244,26 +232,47 @@ const AdminDashboardPage = () => {
                       <td>
                         <div className="action-buttons">
                           <button 
-                            className="btn-view"
-                            onClick={() => navigate(`/admin-dashboard/request/${request.id}`)}
+                            className="btn-delete"
+                            onClick={() => handleDelete(request.id)}
+                            style={{ padding: '5px 10px', background: '#ff4d4d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '5px' }}
                           >
-                            ดู
+                            ลบ
                           </button>
                           {request.status === 'รออนุมัติ' && (
                             <>
                               <button 
                                 className="btn-approve"
                                 onClick={() => handleApprove(request.id)}
+                                title="อนุมัติ"
                               >
                                 ✓
                               </button>
                               <button 
                                 className="btn-reject"
                                 onClick={() => handleReject(request.id)}
+                                title="ไม่อนุมัติ"
                               >
                                 ✗
                               </button>
                             </>
+                          )}
+                          {request.status === 'อนุมัติแล้ว' && (
+                             <button
+                               className="btn-next-step"
+                               onClick={() => handleUpdateStatus(request.id, 'ออกฝึกงาน')}
+                               style={{ padding: '5px 10px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                             >
+                               เริ่มฝึกงาน
+                             </button>
+                          )}
+                          {request.status === 'ออกฝึกงาน' && (
+                             <button
+                               className="btn-finish"
+                               onClick={() => handleUpdateStatus(request.id, 'ฝึกงานเสร็จแล้ว')}
+                               style={{ padding: '5px 10px', background: '#48bb78', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                             >
+                               จบการฝึกงาน
+                             </button>
                           )}
                         </div>
                       </td>

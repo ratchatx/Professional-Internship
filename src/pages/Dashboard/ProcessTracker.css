@@ -1,0 +1,21 @@
+/* Reusing container styles */.status-tracker-container {  background: white;  border-radius: 12px;  padding: 2rem;  margin-bottom: 2rem;  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);  text-align: center;}.status-tracker-container h2 {    text-align: left;    margin-bottom: 2rem;    font-size: 1.25rem;    color: #4a5568;    border-bottom: 1px solid #e1e8ed;    padding-bottom: 1rem;}/* Circular Tracker */.circular-tracker-wrapper {    display: flex;    justify-content: center;    position: relative;    padding: 2rem 0;    min-height: 400px; /* Ensure space for labels */}.circular-tracker {    position: relative;    width: 300px;    height: 300px;}.progress-ring__circle {    transition: stroke-dashoffset 0.8s ease-in-out;    transform: rotate(-90deg);    transform-origin: 50% 50%;    stroke-linecap: round;}/* Center Content */.tracker-center-content {    position: absolute;    top: 50%;    left: 50%;    transform: translate(-50%, -50%);    text-align: center;    width: 180px;}.status-icon-large {    font-size: 3rem;    margin-bottom: 0.5rem;}.tracker-center-content h3 {    font-size: 1.25rem;    color: #2d3748;    margin: 0;    margin-bottom: 0.5rem;}.tracker-center-content p {    font-size: 0.9rem;    color: #718096;    margin: 0;    white-space: nowrap;    overflow: hidden;    text-overflow: ellipsis;}/* Steps around circle */.circular-step-item {    position: absolute;    transform: translate(-50%, -50%);    display: flex;    flex-direction: column;    align-items: center;    z-index: 10;}.circular-step-icon {    width: 40px;    height: 40px;    background: white;    border: 2px solid #e2e8f0;    border-radius: 50%;    display: flex;    justify-content: center;    align-items: center;    font-size: 1.2rem;    color: #a0aec0;    transition: all 0.3s;    box-shadow: 0 2px 4px rgba(0,0,0,0.05);}.circular-step-label {    position: absolute;    top: 45px;    font-size: 0.8rem;    font-weight: 600;    color: #a0aec0;    white-space: nowrap;    background: rgba(255, 255, 255, 0.9);    padding: 2px 6px;    border-radius: 4px;}/* Active State */.circular-step-item.active .circular-step-icon {    border-color: #667eea;    color: #667eea;    background: #ebf4ff;    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);    transform: scale(1.2);}.circular-step-item.active .circular-step-label {    color: #667eea;}/* Completed State */.circular-step-item.completed .circular-step-icon {    border-color: #43e97b;    background: #43e97b;    color: white;}.circular-step-item.completed .circular-step-label {    color: #2f855a;}/* Rejected State */.circular-step-item.rejected .circular-step-icon {    border-color: #fa709a;    background: #fa709a;    color: white;}.circular-step-item.rejected .circular-step-label {    color: #c53030;}/* No Request */.no-request-tracker {    display: flex;    flex-direction: column;    align-items: center;    gap: 1rem;    padding: 1rem;}.no-request-tracker .step-circle.start {    border-color: #667eea;    background: #f0f4ff;    width: 80px;    height: 80px;    font-size: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+.btn-primary-small {
+  margin-top: 1rem;
+  display: inline-block;
+  padding: 0.5rem 1.5rem;
+  background: #667eea;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+.btn-primary-small:hover {
+    background: #5a67d8;
+    transform: translateY(-1px);
+}

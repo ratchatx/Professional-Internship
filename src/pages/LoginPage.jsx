@@ -19,11 +19,25 @@ const LoginPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Add your login logic here
     console.log('Login attempt:', formData);
-    // Navigate to dashboard after successful login
+
+    // Simulate functionality - Save to localStorage
+    const userInfo = {
+      name: formData.userType === 'admin' ? 'Admin User' : 
+            formData.userType === 'advisor' ? 'อาจารย์ที่ปรึกษา' :
+            formData.userType === 'company' ? 'HR บริษัท' : 'นายสมชาย ใจดี',
+      role: formData.userType,
+      email: formData.email
+    };
+    localStorage.setItem('user', JSON.stringify(userInfo));
+
+    // Navigate to dashboard based on role
     if (formData.userType === 'admin') {
       navigate('/admin-dashboard');
+    } else if (formData.userType === 'advisor') {
+      navigate('/advisor-dashboard');
+    } else if (formData.userType === 'company') {
+      navigate('/company-dashboard');
     } else {
       navigate('/dashboard');
     }
@@ -51,6 +65,8 @@ const LoginPage = () => {
               required
             >
               <option value="student">นักศึกษา</option>
+              <option value="advisor">อาจารย์ที่ปรึกษา</option>
+              <option value="company">บริษัท/สถานประกอบการ</option>
               <option value="admin">ผู้ดูแลระบบ</option>
             </select>
           </div>
