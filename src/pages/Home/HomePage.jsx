@@ -1,17 +1,49 @@
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import asyncStorage from '../../utils/asyncStorage';
 import './HomePage.css';
 
 const HomePage = () => {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    asyncStorage.getItem('user').then((raw) => {
+      if (!mounted) return;
+      try {
+        if (raw) setUser(JSON.parse(raw));
+      } catch (e) {
+        setUser(null);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await asyncStorage.removeItem('user');
+    setUser(null);
+  };
+
   return (
     <div className="home-container">
       <nav className="navbar">
         <div className="nav-brand">
-          <h1>🎓 ระบบคำร้องฝึกงานวิชาชีพ</h1>
+          <h1>ระบบคำร้องฝึกงานวิชาชีพ</h1>
         </div>
-        <div className="nav-links">
-          <Link to="/" className="nav-link">หน้าแรก</Link>
-          <Link to="/dashboard" className="nav-link">แดชบอร์ด</Link>
-          <Link to="/login" className="nav-link">เข้าสู่ระบบ</Link>
+        <div className="nav-actions">
+          {!user ? (
+            <>
+              <Link to="/register" className="nav-link">ลงทะเบียน</Link>
+              <Link to="/login" className="nav-link">เข้าสู่ระบบ</Link>
+            </>
+          ) : (
+            <>
+              <Link to="/dashboard/profile" className="nav-link">โปรไฟล์</Link>
+              <button className="nav-link logout-btn" onClick={handleLogout}>ออกจากระบบ</button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -22,12 +54,16 @@ const HomePage = () => {
             ระบบจัดการคำร้องขอฝึกงานวิชาชีพสำหรับนักศึกษา อย่างมีประสิทธิภาพและสะดวกรวดเร็ว
           </p>
           <div className="hero-buttons">
-            <Link to="/register" className="btn btn-primary">
-              ลงทะเบียนนักศึกษา
-            </Link>
-            <Link to="/login" className="btn btn-secondary">
-              เข้าสู่ระบบ
-            </Link>
+            {!user && (
+              <>
+                <Link to="/register" className="btn btn-primary">
+                  ลงทะเบียนนักศึกษา
+                </Link>
+                <Link to="/login" className="btn btn-secondary">
+                  เข้าสู่ระบบ
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </main>
