@@ -1,17 +1,74 @@
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import asyncStorage from '../../utils/asyncStorage';
 import './HomePage.css';
+import logo from '../../assets/LASC-SSKRU-1.png';
 
 const HomePage = () => {
+  const [user, setUser] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    asyncStorage.getItem('user').then((raw) => {
+      if (!mounted) return;
+      try {
+        if (raw) setUser(JSON.parse(raw));
+      } catch (e) {
+        setUser(null);
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await asyncStorage.removeItem('user');
+    setUser(null);
+    setShowMenu(false);
+  };
+
+  // ปิดเมนู dropdown เมื่อคลิกข้างนอก
+  useEffect(() => {
+    if (!showMenu) return;
+    const handle = (e) => {
+      if (!e.target.closest('.profile-menu-wrapper')) setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [showMenu]);
+
   return (
     <div className="home-container">
-      <nav className="navbar">
-        <div className="nav-brand">
-          <h1>🎓 ระบบคำร้องฝึกงานวิชาชีพ</h1>
+      <nav className="navbar lasc-navbar">
+        <div className="nav-brand lasc-logo">
+          <img src={logo} alt="LASC Logo" height={54} />
         </div>
-        <div className="nav-links">
-          <Link to="/" className="nav-link">หน้าแรก</Link>
-          <Link to="/dashboard" className="nav-link">แดชบอร์ด</Link>
-          <Link to="/login" className="nav-link">เข้าสู่ระบบ</Link>
+        <div className="nav-menu">
+          {user && <Link to="/dashboard" className="nav-menu-link">Dashboard</Link>}
+        </div>
+        <div className="nav-actions lasc-nav-actions">
+          {!user ? (
+            <>
+              <Link to="/register" className="nav-link">ลงทะเบียน</Link>
+              <Link to="/login" className="nav-link">เข้าสู่ระบบ</Link>
+            </>
+          ) : (
+            <div className="profile-menu-wrapper">
+              <button className="profile-avatar-btn" onClick={() => setShowMenu(v => !v)}>
+                <span className="profile-avatar-icon">
+                  <svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="12" r="8" fill="#fff"/><ellipse cx="16" cy="26" rx="10" ry="6" fill="#fff"/></svg>
+                </span>
+              </button>
+              {showMenu && (
+                <div className="profile-dropdown-menu">
+                  <Link to="/dashboard/profile" className="dropdown-item" onClick={()=>setShowMenu(false)}>โปรไฟล์</Link>
+                  <button className="dropdown-item" onClick={handleLogout}>ออกจากระบบ</button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </nav>
 
@@ -22,12 +79,16 @@ const HomePage = () => {
             ระบบจัดการคำร้องขอฝึกงานวิชาชีพสำหรับนักศึกษา อย่างมีประสิทธิภาพและสะดวกรวดเร็ว
           </p>
           <div className="hero-buttons">
-            <Link to="/register" className="btn btn-primary">
-              ลงทะเบียนนักศึกษา
-            </Link>
-            <Link to="/login" className="btn btn-secondary">
-              เข้าสู่ระบบ
-            </Link>
+            {!user && (
+              <>
+                <Link to="/register" className="btn btn-primary">
+                  ลงทะเบียนนักศึกษา
+                </Link>
+                <Link to="/login" className="btn btn-secondary">
+                  เข้าสู่ระบบ
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </main>
