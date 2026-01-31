@@ -34,20 +34,32 @@ const AdvisorDashboardPage = () => {
     if (filter === 'all') return true;
     return req.status === filter;
   });
+  
+  const handleApprove = (requestId) => {
+    // Step 2: Advisor Approve -> Send to Admin
+    const updated = allRequests.map(r => r.id === requestId ? {...r, status: 'รอผู้ดูแลระบบอนุมัติ'} : r);
+    setAllRequests(updated);
+    localStorage.setItem('requests', JSON.stringify(updated));
+    alert(`อนุมัติคำร้องเรียบร้อย ส่งต่อให้ผู้ดูแลระบบตรวจสอบ`);
+  };
 
-  const stats = [
-    { title: 'คำร้องทั้งหมด', value: allRequests.length, icon: '📋', color: '#667eea' },
-    { title: 'รออนุมัติ', value: allRequests.filter(r => r.status === 'รออนุมัติ').length, icon: '⏳', color: '#f093fb' },
-    { title: 'อนุมัติแล้ว', value: allRequests.filter(r => r.status === 'อนุมัติแล้ว').length, icon: '✅', color: '#43e97b' },
-  ];
+  const handleReject = (requestId) => {
+    const reason = prompt('กรุณาระบุเหตุผลที่ไม่อนุมัติ:');
+    if (reason) {
+        const updated = allRequests.map(r => r.id === requestId ? {...r, status: 'ไม่อนุมัติ (อาจารย์)', rejectReason: reason} : r);
+        setAllRequests(updated);
+        localStorage.setItem('requests', JSON.stringify(updated));
+        alert('บันทึกผลการไม่อนุมัติเรียบร้อย');
+    }
+  };
 
   const getStatusBadge = (status) => {
     const statusStyles = {
-      'รออนุมัติ': { bg: '#fff3cd', color: '#856404' },
+      'รออาจารย์ที่ปรึกษาอนุมัติ': { bg: '#fff3cd', color: '#856404' },
+      'รอผู้ดูแลระบบอนุมัติ': { bg: '#c3dafe', color: '#434190' },
       'อนุมัติแล้ว': { bg: '#d4edda', color: '#155724' },
-      'ไม่อนุมัติ': { bg: '#f8d7da', color: '#721c24' },
-      'ออกฝึกงาน': { bg: '#c3dafe', color: '#434190' },
-      'ฝึกงานเสร็จแล้ว': { bg: '#fed7e2', color: '#702459' }
+      'ไม่อนุมัติ (อาจารย์)': { bg: '#f8d7da', color: '#721c24' },
+      'ไม่อนุมัติ (Admin)': { bg: '#f8d7da', color: '#721c24' }
     };
     return statusStyles[status] || { bg: '#e2e3e5', color: '#383d41' };
   };
@@ -84,20 +96,88 @@ const AdvisorDashboardPage = () => {
         </header>
 
         <div className="stats-grid">
-          {stats.map((stat, index) => (
-            <div key={index} className="stat-card" style={{ borderTop: `4px solid ${stat.color}` }}>
-              <div className="stat-icon" style={{ background: `${stat.color}20` }}>
-                {stat.icon}
-              </div>
+           {/* Update Stats for Advisor View */}
+           <div className="stat-card" style={{ borderTop: `4px solid #667eea` }}>
               <div className="stat-info">
-                <p className="stat-title">{stat.title}</p>
-                <h3 className="stat-value">{stat.value}</h3>
+                <p className="stat-title">ทั้งหมด</p>
+                <h3 className="stat-value">{allRequests.length}</h3>
               </div>
             </div>
-          ))}
+            <div className="stat-card" style={{ borderTop: `4px solid #f093fb` }}>
+              <div className="stat-info">
+                <p className="stat-title">รอตรวจสอบ</p>
+                <h3 className="stat-value">{allRequests.filter(r => r.status === 'รออาจารย์ที่ปรึกษาอนุมัติ').length}</h3>
+              </div>
+            </div>
         </div>
 
         <div className="content-section">
+          <div className="section-header">
+            <h2>รายการคำร้องที่ต้องตรวจสอบ</h2>
+            <div className="filter-buttons">
+              <button className={`filter-btn ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>ทั้งหมด</button>
+              <button className={`filter-btn ${filter === 'รออาจารย์ที่ปรึกษาอนุมัติ' ? 'active' : ''}`} onClick={() => setFilter('รออาจารย์ที่ปรึกษาอนุมัติ')}>รออนุมัติ</button>
+            </div>
+          </div>
+
+          <div className="requests-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>รหัสนักศึกษา</th>
+                  <th>ชื่อ-นามสกุล</th>
+                  <th>บริษัท</th>
+                  <th>ตำแหน่ง</th>
+                  <th>สถานะ</th>
+                  <th>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRequests.map((request) => {
+                  const statusStyle = getStatusBadge(request.status);
+                  const isPending = request.status === 'รออาจารย์ที่ปรึกษาอนุมัติ';
+                  return (
+                    <tr key={request.id}>
+                      <td>{request.studentId}</td>
+                      <td>{request.studentName}</td>
+                      <td>{request.company}</td>
+                      <td>{request.position}</td>
+                      <td>
+                        <span className="status-badge" style={{ background: statusStyle.bg, color: statusStyle.color }}>
+                          {request.status}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="action-buttons">
+                        {isPending && (
+                          <>
+                            <button className="btn-approve" onClick={() => handleApprove(request.id)} title="อนุมัติ">✓</button>
+                            <button className="btn-reject" onClick={() => handleReject(request.id)} title="ไม่อนุมัติ">✗</button>
+                          </>
+                        )}
+                        <Link 
+                            to={`/dashboard/request/${request.id}`}
+                            style={{ 
+                                padding: '5px 10px', 
+                                background: '#edf2f7', 
+                                color: '#4a5568', 
+                                borderRadius: '4px', 
+                                textDecoration: 'none', 
+                                fontSize: '0.9rem', 
+                                display: 'inline-block',
+                                marginLeft: '5px'
+                            }}
+                          >
+                            🔍 รายละเอียด
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           <div className="section-header">
             <h2>รายการคำร้องฝึกงาน</h2>
             <div className="filter-buttons">

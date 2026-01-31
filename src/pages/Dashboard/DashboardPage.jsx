@@ -21,18 +21,27 @@ const DashboardPage = () => {
               }
               setStudentName(user.full_name || user.name);
         
-              // API Call
-              const response = await api.get(`/requests?student_id=${user._id}`);
+              // API Call Replaced with LocalStorage
+              // const response = await api.get(`/requests?student_id=${user.user_id}`);
               
-              const mappedRequests = response.data.map(req => {
-                  let statusTH = 'รออนุมัติ';
-                  if (req.status === 'admin_approved') statusTH = 'อนุมัติแล้ว';
-                  else if (req.status === 'rejected') statusTH = 'ไม่อนุมัติ';
-                  
+              const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+              // Filter for current user
+              const myRequests = allRequests.filter(req => 
+                 req.studentId == user.student_code || 
+                 req.studentId == user.username ||
+                 (user.email && req.studentId === user.email) || // Fallback
+                 true // Show all for demo if matching fails, or strictly: req.studentId === user.student_code
+              );
+
+              // Sort by date desc
+              myRequests.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
+
+              const mappedRequests = myRequests.map(req => {
+                  // Status is already in Thai/correct format in localStorage from NewRequest/Advisor pages
                   return {
                       ...req,
-                      companyName: req.company?.company_name,
-                      status: statusTH
+                      companyName: req.company || req.companyName,
+                      // status is already correct
                   };
               });
               setInternshipRequests(mappedRequests);
@@ -52,10 +61,19 @@ const DashboardPage = () => {
   };
 
   const currentRequest = internshipRequests[0];
-  const currentStep = !currentRequest ? 0 : 
-    currentRequest.status === 'รออนุมัติ' ? 1 :
-    currentRequest.status === 'ไม่อนุมัติ' ? 3 : 
-    2; // อนุมัติแล้ว
+  
+  // Map extended status to steps (0-4)
+  const getStepIndex = (status) => {
+      if (!status) return 0;
+      if (status === 'รออาจารย์ที่ปรึกษาอนุมัติ' || status === 'รอผู้ดูแลระบบอนุมัติ') return 1;
+      if (status === 'อนุมัติแล้ว') return 2;
+      if (status === 'ออกฝึกงาน') return 3;
+      if (status === 'ฝึกงานเสร็จแล้ว') return 4;
+      if (status.includes('ไม่อนุมัติ')) return 1; // Stay at pending/reject state visually or handle differently
+      return 0;
+  };
+
+  const currentStep = getStepIndex(currentRequest?.status);
 
   const steps = [
     { title: 'ส่งคำร้อง', icon: '📝' },
@@ -67,9 +85,11 @@ const DashboardPage = () => {
 
   const getStatusBadge = (status) => {
     const statusStyles = {
-      'รออนุมัติ': { bg: '#fff3cd', color: '#856404' },
+      'รออาจารย์ที่ปรึกษาอนุมัติ': { bg: '#fff3cd', color: '#856404' },
+      'รอผู้ดูแลระบบอนุมัติ': { bg: '#c3dafe', color: '#434190' },
       'อนุมัติแล้ว': { bg: '#d4edda', color: '#155724' },
-      'ไม่อนุมัติ': { bg: '#f8d7da', color: '#721c24' },
+      'ไม่อนุมัติ (อาจารย์)': { bg: '#f8d7da', color: '#721c24' },
+      'ไม่อนุมัติ (Admin)': { bg: '#f8d7da', color: '#721c24' },
       'ออกฝึกงาน': { bg: '#c3dafe', color: '#434190' },
       'ฝึกงานเสร็จแล้ว': { bg: '#fed7e2', color: '#702459' }
     };
@@ -99,9 +119,9 @@ const DashboardPage = () => {
             <span className="nav-icon">👤</span>
             <span>โปรไฟล์</span>
           </Link>
-          <Link to="/dashboard/settings" className="nav-item">
-            <span className="nav-icon">⚙️</span>
-            <span>ตั้งค่า</span>
+          <Link to="/dashboard/payment-proof" className="nav-item">
+            <span className="nav-icon">💰</span>
+            <span>หลักฐานการชำระออกฝึก</span>
           </Link>
         </nav>
         <div className="sidebar-footer">

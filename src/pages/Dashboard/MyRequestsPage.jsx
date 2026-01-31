@@ -27,30 +27,24 @@ const MyRequestsPage = () => {
             const userStr = localStorage.getItem('user');
             if (userStr) {
                 const user = JSON.parse(userStr);
-                if (user.role !== 'student') {
-                    navigate('/admin-dashboard'); 
-                    return;
-                }
-                setStudentName(user.full_name || user.name);
-
-                // Fetch from API
-                const response = await api.get(`/requests?student_id=${user._id}`);
                 
-                const transformed = response.data.map(req => ({
-                    id: req._id,
-                    companyName: req.company?.company_name || 'ไม่ระบุ',
-                    position: req.position,
-                    status: mapStatus(req.status),
-                    submittedDate: req.request_date ? new Date(req.request_date).toLocaleDateString('th-TH') : '-'
-                }));
+                // Demo Mode: Fetch from LocalStorage for consistency with other roles
+                const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+                // Filter requests for this student (using simple string match for demo, better to use ID)
+                // In NewRequestPage we saved studentId as either code or username
+                // Let's match roughly
+                const myReqs = allRequests.filter(req => 
+                    req.studentId == user.student_code || 
+                    req.studentId == user.username ||
+                    req.studentName === user.full_name
+                );
 
-                setMyRequests(transformed);
+                setMyRequests(myReqs);
             } else {
                 navigate('/login');
             }
         } catch (error) {
             console.error('Error fetching requests:', error);
-            // Fallback or empty on error
             setMyRequests([]);
         }
     };
@@ -72,9 +66,11 @@ const MyRequestsPage = () => {
 
   const getStatusBadge = (status) => {
     const statusStyles = {
-      'รออนุมัติ': { bg: '#fff3cd', color: '#856404' },
+      'รออาจารย์ที่ปรึกษาอนุมัติ': { bg: '#fff3cd', color: '#856404' },
+      'รอผู้ดูแลระบบอนุมัติ': { bg: '#c3dafe', color: '#434190' },
       'อนุมัติแล้ว': { bg: '#d4edda', color: '#155724' },
-      'ไม่อนุมัติ': { bg: '#f8d7da', color: '#721c24' }
+      'ไม่อนุมัติ (อาจารย์)': { bg: '#f8d7da', color: '#721c24' },
+      'ไม่อนุมัติ (Admin)': { bg: '#f8d7da', color: '#721c24' }
     };
     const style = statusStyles[status] || { bg: '#e2e3e5', color: '#383d41' };
     return <span className="status-badge" style={{ backgroundColor: style.bg, color: style.color }}>{status}</span>;
@@ -104,9 +100,9 @@ const MyRequestsPage = () => {
             <span className="nav-icon">👤</span>
             <span>โปรไฟล์</span>
           </Link>
-          <Link to="/dashboard/settings" className="nav-item">
-            <span className="nav-icon">⚙️</span>
-            <span>ตั้งค่า</span>
+          <Link to="/dashboard/payment-proof" className="nav-item">
+            <span className="nav-icon">💰</span>
+            <span>หลักฐานการชำระออกฝึก</span>
           </Link>
         </nav>
         <div className="sidebar-footer">
@@ -171,7 +167,9 @@ const MyRequestsPage = () => {
                                     <td>{req.submittedDate}</td>
                                     <td>{getStatusBadge(req.status)}</td>
                                     <td>
-                                        <button className="btn-view">ดูรายละเอียด</button>
+                                        <Link to={`/dashboard/request/${req.id}`} className="btn-view" style={{ textDecoration: 'none', color: '#667eea', fontWeight: 'bold' }}>
+                                            ดูรายละเอียด
+                                        </Link>
                                     </td>
                                 </tr>
                             ))

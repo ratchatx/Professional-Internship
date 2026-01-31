@@ -46,8 +46,8 @@ const AdminDashboardPage = () => {
       color: '#667eea' 
     },
     { 
-      title: 'รออนุมัติ', 
-      value: allRequests.filter(r => r.status === 'รออนุมัติ').length, 
+      title: 'รอตรวจสอบ (Admin)', 
+      value: allRequests.filter(r => r.status === 'รอผู้ดูแลระบบอนุมัติ').length, 
       icon: '⏳', 
       color: '#f093fb' 
     },
@@ -59,7 +59,7 @@ const AdminDashboardPage = () => {
     },
     { 
       title: 'ไม่อนุมัติ', 
-      value: allRequests.filter(r => r.status === 'ไม่อนุมัติ').length, 
+      value: allRequests.filter(r => r.status.includes('ไม่อนุมัติ')).length, 
       icon: '❌', 
       color: '#fa709a' 
     }
@@ -74,8 +74,7 @@ const AdminDashboardPage = () => {
   };
 
   const handleApprove = (requestId) => {
-    // ... logic to update status ...
-    // For now simplistic update
+    // Step 3: Admin Approve -> Approved
     const updated = allRequests.map(r => r.id === requestId ? {...r, status: 'อนุมัติแล้ว'} : r);
     setAllRequests(updated);
     localStorage.setItem('requests', JSON.stringify(updated));
@@ -90,10 +89,9 @@ const AdminDashboardPage = () => {
   };
 
   const handleReject = (requestId) => {
-    // ... logic to update status ...
     const reason = prompt('กรุณาระบุเหตุผลที่ไม่อนุมัติ:');
     if (reason) {
-        const updated = allRequests.map(r => r.id === requestId ? {...r, status: 'ไม่อนุมัติ'} : r);
+        const updated = allRequests.map(r => r.id === requestId ? {...r, status: 'ไม่อนุมัติ (Admin)'} : r);
         setAllRequests(updated);
         localStorage.setItem('requests', JSON.stringify(updated));
         alert(`ไม่อนุมัติคำร้องเลขที่ ${requestId}`);
@@ -102,9 +100,11 @@ const AdminDashboardPage = () => {
 
   const getStatusBadge = (status) => {
     const statusStyles = {
-      'รออนุมัติ': { bg: '#fff3cd', color: '#856404' },
+      'รออาจารย์ที่ปรึกษาอนุมัติ': { bg: '#e2e3e5', color: '#666' },
+      'รอผู้ดูแลระบบอนุมัติ': { bg: '#fff3cd', color: '#856404' },
       'อนุมัติแล้ว': { bg: '#d4edda', color: '#155724' },
-      'ไม่อนุมัติ': { bg: '#f8d7da', color: '#721c24' }
+      'ไม่อนุมัติ (Admin)': { bg: '#f8d7da', color: '#721c24' },
+      'ไม่อนุมัติ (อาจารย์)': { bg: '#f8d7da', color: '#721c24' }
     };
     return statusStyles[status] || { bg: '#e2e3e5', color: '#383d41' };
   };
@@ -124,13 +124,13 @@ const AdminDashboardPage = () => {
             <span className="nav-icon">👥</span>
             <span>นักศึกษา</span>
           </Link>
+           <Link to="/admin-dashboard/payments" className="nav-item">
+            <span className="nav-icon">💰</span>
+            <span>ตรวจสอบการชำระเงิน</span>
+          </Link>
           <Link to="/admin-dashboard/reports" className="nav-item">
             <span className="nav-icon">📊</span>
             <span>รายงาน</span>
-          </Link>
-          <Link to="/admin-dashboard/settings" className="nav-item">
-            <span className="nav-icon">⚙️</span>
-            <span>ตั้งค่า</span>
           </Link>
         </nav>
         <div className="sidebar-footer">
@@ -176,14 +176,14 @@ const AdminDashboardPage = () => {
                 ทั้งหมด
               </button>
               <button 
-                className={`filter-btn ${filter === 'pending' ? 'active' : ''}`}
-                onClick={() => setFilter('pending')}
+                className={`filter-btn ${filter === 'pending_admin' ? 'active' : ''}`}
+                onClick={() => setFilter('รอผู้ดูแลระบบอนุมัติ')}
               >
-                รออนุมัติ
+                รอตรวจสอบ
               </button>
               <button 
                 className={`filter-btn ${filter === 'approved' ? 'active' : ''}`}
-                onClick={() => setFilter('approved')}
+                onClick={() => setFilter('อนุมัติแล้ว')}
               >
                 อนุมัติแล้ว
               </button>
@@ -238,7 +238,7 @@ const AdminDashboardPage = () => {
                           >
                             ลบ
                           </button>
-                          {request.status === 'รออนุมัติ' && (
+                          {request.status === 'รอผู้ดูแลระบบอนุมัติ' && (
                             <>
                               <button 
                                 className="btn-approve"
@@ -273,8 +273,21 @@ const AdminDashboardPage = () => {
                              >
                                จบการฝึกงาน
                              </button>
-                          )}
-                        </div>
+                          )}                           <Link 
+                            to={`/dashboard/request/${request.id}`}
+                            style={{ 
+                                padding: '5px 10px', 
+                                background: '#edf2f7', 
+                                color: '#4a5568', 
+                                borderRadius: '4px', 
+                                textDecoration: 'none', 
+                                fontSize: '0.9rem',
+                                display: 'inline-block',
+                                marginLeft: '5px'
+                            }}
+                          >
+                            🔍 ดูรายละเอียด
+                          </Link>                        </div>
                       </td>
                     </tr>
                   );

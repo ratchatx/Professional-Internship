@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import asyncStorage from '../utils/asyncStorage';
 import './RegisterPage.css';
 
 const RegisterPage = () => {
@@ -43,7 +44,14 @@ const RegisterPage = () => {
         faculty: 'Engineering' // Default faculty or add field if needed
       };
 
-      await api.post('/users', payload);
+      await api.post('/users', payload).catch(err => console.log('Backend API failed, using local storage fallback.'));
+      
+      // Save to asyncStorage for Admin Student List
+      const usersJson = await asyncStorage.getItem('users');
+      const users = usersJson ? JSON.parse(usersJson) : [];
+      users.push(payload);
+      await asyncStorage.setItem('users', JSON.stringify(users));
+
       alert('ลงทะเบียนสำเร็จ!');
       navigate('/login');
     } catch (error) {

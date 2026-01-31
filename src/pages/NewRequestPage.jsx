@@ -62,9 +62,26 @@ const NewRequestPage = () => {
         skills: formData.skills
       };
 
-      await api.post('/requests', payload);
+      await api.post('/requests', payload).catch(e => console.warn("API unavailable, using local storage"));
 
-      alert('ยื่นคำร้องสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ');
+      // Start: Add to LocalStorage for Demo
+      const existingRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      const newRequest = {
+        id: Date.now().toString(),
+        studentId: user.student_code || user.username || 'N/A',
+        studentName: user.full_name || user.name || 'Student',
+        department: user.major || 'Computer Engineering',
+        company: formData.companyName,
+        position: formData.position,
+        submittedDate: new Date().toISOString(),
+        status: 'รออาจารย์ที่ปรึกษาอนุมัติ', // Step 1: Send to Advisor
+        details: payload
+      };
+      existingRequests.push(newRequest);
+      localStorage.setItem('requests', JSON.stringify(existingRequests));
+      // End: Add to LocalStorage
+
+      alert('ยื่นคำร้องสำเร็จ! รอการอนุมัติจากอาจารย์ที่ปรึกษา');
       navigate('/dashboard/my-requests');
     } catch (error) {
       console.error('Error submitting request:', error);

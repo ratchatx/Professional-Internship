@@ -22,12 +22,27 @@ const LoginPage = () => {
     e.preventDefault();
     
     try {
-      const response = await api.post('/users/login', {
-        email: formData.email,
-        password: formData.password
-      });
+      // Mock Login Implementation since backend is disconnected
+      // const response = await api.post('/users/login', {
+      //   email: formData.email,
+      //   password: formData.password
+      // });
+      // const user = response.data.user;
 
-      const user = response.data.user;
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const user = {
+        _id: 'mock_id_12345',
+        email: formData.email,
+        role: formData.userType, // Use the selected type from dropdown
+        profile: {
+          firstName: 'Exam',
+          lastName: 'User'
+        }
+      };
+
+      console.log('Mock login success:', user);
       
       // Store user info in localStorage
       localStorage.setItem('user', JSON.stringify({

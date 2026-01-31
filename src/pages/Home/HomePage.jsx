@@ -46,28 +46,30 @@ const HomePage = () => {
           <img src={logo} alt="LASC Logo" height={54} />
         </div>
         <div className="nav-menu">
-          {user && <Link to="/dashboard" className="nav-menu-link">Dashboard</Link>}
+          {/* Menu moved to right */}
         </div>
         <div className="nav-actions lasc-nav-actions">
           {!user ? (
             <>
-              <Link to="/register" className="nav-link">ลงทะเบียน</Link>
               <Link to="/login" className="nav-link">เข้าสู่ระบบ</Link>
             </>
           ) : (
-            <div className="profile-menu-wrapper">
-              <button className="profile-avatar-btn" onClick={() => setShowMenu(v => !v)}>
-                <span className="profile-avatar-icon">
-                  <svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="12" r="8" fill="#fff"/><ellipse cx="16" cy="26" rx="10" ry="6" fill="#fff"/></svg>
-                </span>
-              </button>
-              {showMenu && (
-                <div className="profile-dropdown-menu">
-                  <Link to="/dashboard/profile" className="dropdown-item" onClick={()=>setShowMenu(false)}>โปรไฟล์</Link>
-                  <button className="dropdown-item" onClick={handleLogout}>ออกจากระบบ</button>
-                </div>
-              )}
-            </div>
+            <>
+              <Link to="/dashboard" className="nav-menu-link">Dashboard</Link>
+              <div className="profile-menu-wrapper">
+                <button className="profile-avatar-btn" onClick={() => setShowMenu(v => !v)}>
+                  <span className="profile-avatar-icon">
+                    <svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="12" r="8" fill="#fff"/><ellipse cx="16" cy="26" rx="10" ry="6" fill="#fff"/></svg>
+                  </span>
+                </button>
+                {showMenu && (
+                  <div className="profile-dropdown-menu">
+                    <Link to="/dashboard/profile" className="dropdown-item" onClick={()=>setShowMenu(false)}>โปรไฟล์</Link>
+                    <button className="dropdown-item" onClick={handleLogout}>ออกจากระบบ</button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </nav>
@@ -79,16 +81,7 @@ const HomePage = () => {
             ระบบจัดการคำร้องขอฝึกงานวิชาชีพสำหรับนักศึกษา อย่างมีประสิทธิภาพและสะดวกรวดเร็ว
           </p>
           <div className="hero-buttons">
-            {!user && (
-              <>
-                <Link to="/register" className="btn btn-primary">
-                  ลงทะเบียนนักศึกษา
-                </Link>
-                <Link to="/login" className="btn btn-secondary">
-                  เข้าสู่ระบบ
-                </Link>
-              </>
-            )}
+            {/* Buttons removed */ }
           </div>
         </div>
       </main>
