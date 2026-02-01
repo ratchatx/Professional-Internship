@@ -117,6 +117,7 @@ const StudentListPage = () => {
                   <th>อีเมล</th>
                   <th>เบอร์โทร</th>
                   <th>สถานะ</th>
+                  <th>การกระทำ</th>
                 </tr>
               </thead>
               <tbody>
@@ -132,10 +133,13 @@ const StudentListPage = () => {
                           ลงทะเบียนแล้ว
                         </span>
                       </td>
+                      <td>
+                        <Link to={`/dashboard/student/${student.student_code || student.username}`} className="btn-view" style={{border: '1px solid #ddd', padding: '6px 10px', borderRadius: 6}}>ดูรายละเอียด</Link>
+                      </td>
                     </tr>
                 )) : (
                     <tr>
-                        <td colSpan="6" style={{textAlign: 'center', padding: '20px'}}>ไม่พบข้อมูลนักศึกษา</td>
+                        <td colSpan="7" style={{textAlign: 'center', padding: '20px'}}>ไม่พบข้อมูลนักศึกษา</td>
                     </tr>
                 )}
               </tbody>

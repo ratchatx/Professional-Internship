@@ -33,12 +33,13 @@
 }
 
 .request-form {
-  max-width: 900px;
+  max-width: 1000px;
   margin: 0 auto;
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfbff 100%);
+  border-radius: 14px;
+  padding: 2.25rem;
+  box-shadow: 0 10px 30px rgba(40, 46, 78, 0.06);
+  border: 1px solid rgba(102,126,234,0.06);
 }
 
 .form-section {
@@ -56,7 +57,11 @@
   font-size: 1.25rem;
   margin-bottom: 1.5rem;
   padding-bottom: 0.5rem;
-  border-bottom: 3px solid #667eea;
+  border-bottom: 4px solid transparent;
+  background-image: linear-gradient(90deg, rgba(102,126,234,1), rgba(118,75,162,1));
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: 60% 4px;
   display: inline-block;
 }
 
@@ -83,11 +88,11 @@
 .form-group input,
 .form-group textarea,
 .form-group select {
-  padding: 0.875rem;
-  border: 2px solid #e1e8ed;
-  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  border: 1.5px solid #e6eef9;
+  border-radius: 10px;
   font-size: 1rem;
-  transition: border-color 0.3s, box-shadow 0.3s;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.08s;
   font-family: inherit;
 }
 
@@ -95,8 +100,9 @@
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: rgba(102,126,234,0.95);
+  box-shadow: 0 6px 18px rgba(102,126,234,0.08);
+  transform: translateY(-1px);
 }
 
 .form-group textarea {
@@ -141,8 +147,8 @@
 }
 
 .btn-submit:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(102, 126, 234, 0.18);
 }
 
 .btn-submit:active {
@@ -160,7 +166,7 @@
 
   .form-row {
     grid-template-columns: 1fr;
-    gap: 0;
+    gap: 1rem;
   }
 
   .form-actions {
@@ -171,5 +177,43 @@
   .btn-submit {
     width: 100%;
     text-align: center;
+  }
+}
+
+/* File input styling and help text */
+.file-info {
+  margin-top: 0.5rem;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+input[type="file"] {
+  padding: 0.5rem 0.6rem;
+  border: 1.5px dashed rgba(102,126,234,0.14);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fff, #fcfcff);
+}
+
+/* Subheading for inline group */
+h3 {
+  font-size: 1rem;
+  color: #374151;
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Slightly smaller labels for compactness */
+.form-group label {
+  font-size: 0.88rem;
+  color: #1f2937;
+}
+
+/* Improve visual separation of sections on large screens */
+@media (min-width: 900px) {
+  .form-section {
+    padding: 2.25rem;
+    background: rgba(250,250,255,0.6);
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
   }
 }

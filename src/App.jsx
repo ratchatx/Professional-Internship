@@ -15,6 +15,7 @@ import AdminReportsPage from './pages/Dashboard/AdminReportsPage';
 import AdvisorStudentListPage from './pages/Dashboard/AdvisorStudentListPage';
 import AdvisorSupervisionPage from './pages/Dashboard/AdvisorSupervisionPage';
 import RequestDetailsPage from './pages/Dashboard/RequestDetailsPage';
+import StudentDetailsPage from './pages/Dashboard/StudentDetailsPage';
 import './App.css';
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
         <Route path="/dashboard/new-request" element={<NewRequestPage />} />
         <Route path="/dashboard/my-requests" element={<MyRequestsPage />} />
         <Route path="/dashboard/request/:id" element={<RequestDetailsPage />} />
+        <Route path="/dashboard/student/:id" element={<StudentDetailsPage />} />
         <Route path="/dashboard/payment-proof" element={<PaymentProofPage />} />
         <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
         <Route path="/admin-dashboard/students" element={<StudentListPage />} />

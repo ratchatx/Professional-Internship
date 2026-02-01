@@ -92,14 +92,15 @@ const AdminPaymentCheckPage = () => {
             </aside>
 
             <main className="admin-main">
-                 <header className="admin-header">
+                <header className="admin-header">
                     <div>
-                        <h1>ตรวจสอบหลักฐานการชำระเงิน</h1>
-                        <p>รายการแจ้งชำระค่าธรรมเนียมฝึกงานของนักศึกษา</p>
+                        <h1>ตรวจสอบการชำระเงิน</h1>
+                        <p>จัดการหลักฐานการชำระเงินจากนักศึกษา</p>
                     </div>
-                 </header>
+                    <Link to="/" className="home-link">หน้าแรก</Link>
+                </header>
 
-                 <div className="content-section">
+                <div className="content-section">
                     <div className="requests-table">
                         <table>
                             <thead>

@@ -61,23 +61,23 @@ const AdminReportsPage = () => {
     <div className="admin-dashboard-container">
       <aside className="sidebar">
         <div className="sidebar-header">
-          <h2>👨‍💼 ผู้ดูแลระบบ</h2>
+          <h2>ผู้ดูแลระบบ</h2>
         </div>
         <nav className="sidebar-nav">
           <Link to="/admin-dashboard" className="nav-item">
-            <span className="nav-icon">🏠</span>
+            <span className="nav-icon"></span>
             <span>หน้าหลัก</span>
           </Link>
           <Link to="/admin-dashboard/students" className="nav-item">
-            <span className="nav-icon">👥</span>
+            <span className="nav-icon"></span>
             <span>นักศึกษา</span>
           </Link>
           <Link to="/admin-dashboard/payments" className="nav-item">
-            <span className="nav-icon">💰</span>
+            <span className="nav-icon"></span>
             <span>ตรวจสอบการชำระเงิน</span>
           </Link>
           <Link to="/admin-dashboard/reports" className="nav-item active">
-            <span className="nav-icon">📊</span>
+            <span className="nav-icon"></span>
             <span>รายงาน</span>
           </Link>
         </nav>
@@ -91,9 +91,10 @@ const AdminReportsPage = () => {
       <main className="admin-main">
         <header className="admin-header">
           <div>
-            <h1>รายงานสรุปผล</h1>
-            <p>ภาพรวมและสถิติการฝึกงาน</p>
+            <h1>รายงาน</h1>
+            <p>สรุปสถานะคำร้องและสถิติต่างๆ</p>
           </div>
+          <Link to="/" className="home-link">หน้าแรก</Link>
         </header>
 
         <div className="reports-content">

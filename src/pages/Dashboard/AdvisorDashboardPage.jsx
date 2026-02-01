@@ -68,19 +68,19 @@ const AdvisorDashboardPage = () => {
     <div className="admin-dashboard-container">
       <aside className="sidebar">
         <div className="sidebar-header">
-          <h2>👨‍🏫 อาจารย์ที่ปรึกษา</h2>
+          <h2>อาจารย์ที่ปรึกษา</h2>
         </div>
         <nav className="sidebar-nav">
           <Link to="/advisor-dashboard" className="nav-item active">
-            <span className="nav-icon">🏠</span>
+            <span className="nav-icon"></span>
             <span>หน้าหลัก</span>
           </Link>
           <Link to="/advisor-dashboard/students" className="nav-item">
-            <span className="nav-icon">🎓</span>
+            <span className="nav-icon"></span>
             <span>รายชื่อนักศึกษาฝึกงาน</span>
           </Link>
           <Link to="/advisor-dashboard/supervision" className="nav-item">
-            <span className="nav-icon">🚗</span>
+            <span className="nav-icon"></span>
             <span>ตารางนิเทศงาน</span>
           </Link>
         </nav>

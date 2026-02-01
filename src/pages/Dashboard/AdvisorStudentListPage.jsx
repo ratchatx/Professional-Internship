@@ -55,21 +55,21 @@ const AdvisorStudentListPage = () => {
         <div className="admin-dashboard-container">
             <aside className="sidebar">
                 <div className="sidebar-header">
-                    <h2>👨‍🏫 อาจารย์ที่ปรึกษา</h2>
+                        <h2>นักศึกษา</h2>
                 </div>
                 <nav className="sidebar-nav">
-                    <Link to="/advisor-dashboard" className="nav-item">
-                        <span className="nav-icon">🏠</span>
-                        <span>หน้าหลัก</span>
-                    </Link>
-                    <Link to="/advisor-dashboard/students" className="nav-item active">
-                        <span className="nav-icon">🎓</span>
-                        <span>รายชื่อนักศึกษาฝึกงาน</span>
-                    </Link>
-                    <Link to="/advisor-dashboard/supervision" className="nav-item">
-                        <span className="nav-icon">🚗</span>
-                        <span>ตารางนิเทศงาน</span>
-                    </Link>
+                        <Link to="/advisor-dashboard" className="nav-item">
+                            <span className="nav-icon"></span>
+                            <span>หน้าหลัก</span>
+                        </Link>
+                        <Link to="/advisor-dashboard/students" className="nav-item active">
+                            <span className="nav-icon"></span>
+                            <span>รายชื่อนักศึกษาฝึกงาน</span>
+                        </Link>
+                        <Link to="/advisor-dashboard/supervision" className="nav-item">
+                            <span className="nav-icon"></span>
+                            <span>ตารางนิเทศงาน</span>
+                        </Link>
                 </nav>
                 <div className="sidebar-footer">
                     <button onClick={handleLogout} className="logout-btn">
@@ -100,6 +100,7 @@ const AdvisorStudentListPage = () => {
                                     <th>สาขาวิชา</th>
                                     <th>อีเมล</th>
                                     <th>เบอร์โทร</th>
+                                    <th>การกระทำ</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -111,11 +112,14 @@ const AdvisorStudentListPage = () => {
                                             <td>{student.major}</td>
                                             <td>{student.email || '-'}</td>
                                             <td>{student.phone || '-'}</td>
+                                            <td>
+                                                <Link to={`/dashboard/student/${student.student_code || student.username}`} className="btn-view" style={{border: '1px solid #ddd', padding: '6px 8px', borderRadius: 6}}>ดูรายละเอียด</Link>
+                                            </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
+                                        <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
                                             ไม่พบรายชื่อนักศึกษาในสาขานี้
                                         </td>
                                     </tr>

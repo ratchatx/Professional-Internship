@@ -18,6 +18,17 @@ const NewRequestPage = () => {
     }
     const user = JSON.parse(userStr);
 
+    // Prefill student-related fields if available from the logged-in user
+    setFormData(prev => ({
+      ...prev,
+      studentName: user.full_name || user.name || prev.studentName,
+      studentEmail: user.email || prev.studentEmail,
+      studentId: user.student_code || user.username || prev.studentId,
+      studentMajor: user.major || prev.studentMajor,
+      studentFaculty: user.faculty || prev.studentFaculty,
+      studentPhone: user.phone || prev.studentPhone
+    }));
+
     // Optional: Check for existing active request via API
     // For now, we'll keep it simple or implement check later
   }, [navigate]);
@@ -36,9 +47,29 @@ const NewRequestPage = () => {
     supervisor: '',
     supervisorEmail: '',
     supervisorPhone: '',
+    supervisorPosition: '',
+
+    // Student personal fields
+    studentTitle: '',
+    studentName: '',
+    studentEmail: '',
+    studentId: '',
+    studentYear: '',
+    studentMajor: '',
+    studentFaculty: '',
+    homeHouse: '',
+    homeMoo: '',
+    homeTambon: '',
+    homeAmphur: '',
+    homeProvince: '',
+    homePostal: '',
+    studentPhone: '',
+
     jobDescription: '',
     skills: ''
   });
+
+  const [studentPhoto, setStudentPhoto] = useState(null);
 
   const handleChange = (e) => {
     setFormData({
@@ -47,18 +78,60 @@ const NewRequestPage = () => {
     });
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) {
+      setStudentPhoto(null);
+      return;
+    }
+    if (file.type !== 'application/pdf') {
+      alert('กรุณาอัพโหลดไฟล์เป็นรูปแบบ PDF เท่านั้น');
+      e.target.value = null;
+      return;
+    }
+    setStudentPhoto(file);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (hasExistingRequest) return;
 
     try {
       const user = JSON.parse(localStorage.getItem('user'));
-      
+      let photoData = null;
+      if (studentPhoto) {
+        photoData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(studentPhoto);
+        });
+      }
+
       const payload = {
         student_id: user._id, // Assumes user object has Student ID (from profile spread)
+        student_info: {
+          title: formData.studentTitle,
+          name: formData.studentName,
+            email: formData.studentEmail,
+          studentId: formData.studentId,
+          year: formData.studentYear,
+          major: formData.studentMajor,
+          faculty: formData.studentFaculty,
+          address: {
+            house: formData.homeHouse,
+            moo: formData.homeMoo,
+            tambon: formData.homeTambon,
+            amphur: formData.homeAmphur,
+            province: formData.homeProvince,
+            postal: formData.homePostal
+          },
+          phone: formData.studentPhone
+        },
         companyName: formData.companyName,
         address: formData.address,
         contactPerson: formData.supervisor,
+        contactPosition: formData.supervisorPosition,
         contactEmail: formData.supervisorEmail,
         contactPhone: formData.supervisorPhone,
         position: formData.position,
@@ -66,6 +139,8 @@ const NewRequestPage = () => {
         endDate: formData.endDate,
         description: formData.jobDescription,
         skills: formData.skills
+        ,
+        studentPhoto: photoData ? { name: studentPhoto.name, data: photoData } : null
       };
 
       await api.post('/requests', payload).catch(e => console.warn("API unavailable, using local storage"));
@@ -74,14 +149,15 @@ const NewRequestPage = () => {
       const existingRequests = JSON.parse(localStorage.getItem('requests') || '[]');
       const newRequest = {
         id: Date.now().toString(),
-        studentId: user.student_code || user.username || 'N/A',
-        studentName: user.full_name || user.name || 'Student',
-        department: user.major || 'Computer Engineering',
+        studentId: formData.studentId || user.student_code || user.username || 'N/A',
+        studentName: formData.studentName || user.full_name || user.name || 'Student',
+        department: formData.studentMajor || user.major || 'Computer Engineering',
         company: formData.companyName,
         position: formData.position,
         submittedDate: new Date().toISOString(),
         status: 'รออาจารย์ที่ปรึกษาอนุมัติ', // Step 1: Send to Advisor
-        details: payload
+        details: payload,
+        studentPhotoName: studentPhoto ? studentPhoto.name : null
       };
       existingRequests.push(newRequest);
       localStorage.setItem('requests', JSON.stringify(existingRequests));
@@ -139,6 +215,89 @@ const NewRequestPage = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="request-form">
+            <div className="form-section">
+              <h2>ข้อมูลส่วนตัวนักศึกษา</h2>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="studentTitle">คำนำหน้า</label>
+                  <select id="studentTitle" name="studentTitle" value={formData.studentTitle} onChange={handleChange}>
+                    <option value="">-- เลือก --</option>
+                    <option value="นาย">นาย</option>
+                    <option value="นาง">นาง</option>
+                    <option value="นางสาว">นางสาว</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="studentName">ชื่อ-นามสกุล</label>
+                  <input type="text" id="studentName" name="studentName" value={formData.studentName} onChange={handleChange} placeholder="ชื่อ-นามสกุล" />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="studentId">รหัสนักศึกษา</label>
+                  <input type="text" id="studentId" name="studentId" value={formData.studentId} onChange={handleChange} placeholder="รหัสนักศึกษา" />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="studentYear">ปีการศึกษา/ชั้นปี</label>
+                  <input type="text" id="studentYear" name="studentYear" value={formData.studentYear} onChange={handleChange} placeholder="เช่น ปี 4" />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="studentMajor">สาขา</label>
+                  <input type="text" id="studentMajor" name="studentMajor" value={formData.studentMajor} onChange={handleChange} placeholder="สาขา" />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="studentFaculty">คณะ/วิทยาลัย</label>
+                  <input type="text" id="studentFaculty" name="studentFaculty" value={formData.studentFaculty} onChange={handleChange} placeholder="คณะ/วิทยาลัย" />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="homeAddress">ที่อยู่ตามบัตรประชาชน</label>
+                <div className="form-row">
+                  <input type="text" id="homeHouse" name="homeHouse" value={formData.homeHouse} onChange={handleChange} placeholder="บ้านเลขที่" />
+                  <input type="text" id="homeMoo" name="homeMoo" value={formData.homeMoo} onChange={handleChange} placeholder="หมู่" />
+                </div>
+                <div className="form-row">
+                  <input type="text" id="homeTambon" name="homeTambon" value={formData.homeTambon} onChange={handleChange} placeholder="ตำบล" />
+                  <input type="text" id="homeAmphur" name="homeAmphur" value={formData.homeAmphur} onChange={handleChange} placeholder="อำเภอ" />
+                </div>
+                <div className="form-row">
+                  <input type="text" id="homeProvince" name="homeProvince" value={formData.homeProvince} onChange={handleChange} placeholder="จังหวัด" />
+                  <input type="text" id="homePostal" name="homePostal" value={formData.homePostal} onChange={handleChange} placeholder="รหัสไปรษณีย์" />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="studentPhone">เบอร์โทรศัพท์</label>
+                <input type="tel" id="studentPhone" name="studentPhone" value={formData.studentPhone} onChange={handleChange} placeholder="094-xxxxxxx" />
+              </div>
+              <div className="form-group">
+                <label htmlFor="studentEmail">อีเมลล์</label>
+                <input type="email" id="studentEmail" name="studentEmail" value={formData.studentEmail} onChange={handleChange} placeholder="student@university.ac.th" />
+              </div>
+              <div className="form-group">
+                <label htmlFor="studentPhoto">อัพโหลดรูปถ่ายนักศึกษา (PDF)</label>
+                <input
+                  type="file"
+                  id="studentPhoto"
+                  name="studentPhoto"
+                  accept="application/pdf"
+                  onChange={handleFileChange}
+                />
+                {studentPhoto && (
+                  <p className="file-info">ไฟล์ที่เลือก: {studentPhoto.name}</p>
+                )}
+              </div>
+            </div>
+
             <div className="form-section">
               <h2>ข้อมูลสถานประกอบการ</h2>
               
@@ -208,13 +367,10 @@ const NewRequestPage = () => {
                   />
                 </div>
               </div>
-            </div>
 
-            <div className="form-section">
-              <h2>ข้อมูลพี่เลี้ยง/ผู้ดูแล</h2>
-              
+              <h3>ข้อมูลหัวหน้าหน่วยงาน/ผู้ดูแล</h3>
               <div className="form-group">
-                <label htmlFor="supervisor">ชื่อพี่เลี้ยง/ผู้ดูแล *</label>
+                <label htmlFor="supervisor"></label>
                 <input
                   type="text"
                   id="supervisor"
@@ -228,7 +384,19 @@ const NewRequestPage = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="supervisorEmail">อีเมลพี่เลี้ยง *</label>
+                  <label htmlFor="supervisorPosition">ตำแหน่ง</label>
+                  <input
+                    type="text"
+                    id="supervisorPosition"
+                    name="supervisorPosition"
+                    value={formData.supervisorPosition}
+                    onChange={handleChange}
+                    placeholder="ตำแหน่งหัวหน้าหน่วยงาน"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="supervisorEmail">อีเมลหัวหน้าหน่วยงาน</label>
                   <input
                     type="email"
                     id="supervisorEmail"
@@ -236,22 +404,20 @@ const NewRequestPage = () => {
                     value={formData.supervisorEmail}
                     onChange={handleChange}
                     placeholder="supervisor@company.com"
-                    required
                   />
                 </div>
+              </div>
 
-                <div className="form-group">
-                  <label htmlFor="supervisorPhone">เบอร์โทรพี่เลี้ยง *</label>
-                  <input
-                    type="tel"
-                    id="supervisorPhone"
-                    name="supervisorPhone"
-                    value={formData.supervisorPhone}
-                    onChange={handleChange}
-                    placeholder="0812345678"
-                    required
-                  />
-                </div>
+              <div className="form-group">
+                <label htmlFor="supervisorPhone">เบอร์โทรหัวหน้าหน่วยงาน</label>
+                <input
+                  type="tel"
+                  id="supervisorPhone"
+                  name="supervisorPhone"
+                  value={formData.supervisorPhone}
+                  onChange={handleChange}
+                  placeholder="0812345678"
+                />
               </div>
             </div>
 

@@ -128,7 +128,7 @@ const CompanyDashboardPage = () => {
                       </span>
                     </td>
                     <td>
-                        <button className="btn-view" style={{border: '1px solid #ddd', padding: '4px 8px', borderRadius: '4px'}}>ดูประวัติ</button>
+                      <Link to={`/dashboard/student/${request.studentId || request.studentId}`} className="btn-view" style={{border: '1px solid #ddd', padding: '4px 8px', borderRadius: '4px'}}>ดูรายละเอียด</Link>
                     </td>
                   </tr>
                 ))}
