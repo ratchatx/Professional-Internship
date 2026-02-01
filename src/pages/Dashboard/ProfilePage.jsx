@@ -105,13 +105,13 @@ const ProfilePage = () => {
             <span className="nav-icon">📝</span>
             <span>คำร้องของฉัน</span>
           </Link>
-          <Link to="/dashboard/profile" className="nav-item active">
-            <span className="nav-icon">👤</span>
-            <span>โปรไฟล์</span>
-          </Link>
           <Link to="/dashboard/payment-proof" className="nav-item">
             <span className="nav-icon">💰</span>
             <span>หลักฐานการชำระออกฝึก</span>
+          </Link>
+          <Link to="/dashboard/profile" className="nav-item active">
+            <span className="nav-icon">👤</span>
+            <span>โปรไฟล์</span>
           </Link>
         </nav>
         <div className="sidebar-footer">

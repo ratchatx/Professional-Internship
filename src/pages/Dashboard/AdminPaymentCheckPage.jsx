@@ -75,13 +75,13 @@ const AdminPaymentCheckPage = () => {
                         <span className="nav-icon">👥</span>
                         <span>นักศึกษา</span>
                     </Link>
+                    <Link to="/admin-dashboard/payments" className="nav-item active">
+                        <span className="nav-icon">💰</span>
+                        <span>ตรวจสอบการชำระเงิน</span>
+                    </Link>
                     <Link to="/admin-dashboard/reports" className="nav-item">
                         <span className="nav-icon">📊</span>
                         <span>รายงาน</span>
-                    </Link>
-                     <Link to="/admin-dashboard/payments" className="nav-item active">
-                        <span className="nav-icon">💰</span>
-                        <span>ตรวจสอบการชำระเงิน</span>
                     </Link>
                 </nav>
                 <div className="sidebar-footer">

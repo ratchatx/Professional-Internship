@@ -79,6 +79,10 @@ const AdvisorDashboardPage = () => {
             <span className="nav-icon">🎓</span>
             <span>รายชื่อนักศึกษาฝึกงาน</span>
           </Link>
+          <Link to="/advisor-dashboard/supervision" className="nav-item">
+            <span className="nav-icon">🚗</span>
+            <span>ตารางนิเทศงาน</span>
+          </Link>
         </nav>
         <div className="sidebar-footer">
           <button onClick={handleLogout} className="logout-btn">
