@@ -1,20 +1,22 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import api from '../api/axios';
 import './LoginPage.css';
+import lascLogo from '../assets/LASC-SSKRU-1.png';
+import sskruLogo from '../assets/SSKRU-logo-400x400-1-192x192.png';
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    userType: 'student' // student or admin
+    rememberMe: false
   });
 
   const handleChange = (e) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: value
     });
   };
 
@@ -22,49 +24,48 @@ const LoginPage = () => {
     e.preventDefault();
     
     try {
-      // Mock Login Implementation since backend is disconnected
-      // const response = await api.post('/users/login', {
-      //   email: formData.email,
-      //   password: formData.password
-      // });
-      // const user = response.data.user;
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 1. Try to find user in localStorage (registered users)
+      const usersStr = localStorage.getItem('users');
+      const users = usersStr ? JSON.parse(usersStr) : [];
       
-      const user = {
-        _id: 'mock_id_12345',
-        email: formData.email,
-        role: formData.userType, // Use the selected type from dropdown
-        profile: {
-          firstName: 'Exam',
-          lastName: 'User'
+      const foundUser = users.find(u => 
+        (u.email === formData.email || u.username === formData.email) && 
+        u.password === formData.password
+      );
+
+      if (foundUser) {
+        console.log('Login success:', foundUser);
+        localStorage.setItem('user', JSON.stringify(foundUser));
+        
+        switch(foundUser.role) {
+            case 'admin': navigate('/admin-dashboard'); break;
+            case 'advisor': navigate('/advisor-dashboard'); break;
+            case 'company': navigate('/company-dashboard'); break;
+            default: navigate('/dashboard');
         }
-      };
-
-      console.log('Mock login success:', user);
-      
-      // Store user info in localStorage
-      localStorage.setItem('user', JSON.stringify({
-        ...user,
-        // Map backend role to frontend expected role if names differ, but they seem to match (student, advisor, admin)
-        // If profile exists, merge it
-        ...(user.profile || {})
-      }));
-
-      // Navigate based on role
-      // Note: The backend role is 'student', 'advisor', 'admin'. 
-      // Ensure these match your routes.
-      
-      if (user.role === 'admin') {
-        navigate('/admin-dashboard');
-      } else if (user.role === 'advisor') {
-        navigate('/advisor-dashboard');
-      } else if (user.role === 'company') { // If you added company role later
-        navigate('/company-dashboard');
-      } else {
-        navigate('/dashboard'); // Student dashboard
+        return;
       }
+
+      // If not found in stored users, fallback to mock demo logic (for admin/advisor if not registered)
+      if (formData.email.includes('admin') || formData.email.includes('advisor')) {
+        let role = 'student';
+        if (formData.email.includes('admin')) role = 'admin';
+        if (formData.email.includes('advisor')) role = 'advisor';
+
+        const mockUser = {
+            _id: 'mock_id_' + Date.now(),
+            email: formData.email,
+            role: role, 
+            name: role === 'admin' ? 'Admin User' : 'Advisor User',
+            full_name: role === 'admin' ? 'Admin User' : 'Advisor User',
+        };
+        localStorage.setItem('user', JSON.stringify(mockUser));
+        if (role === 'admin') navigate('/admin-dashboard');
+        else if (role === 'advisor') navigate('/advisor-dashboard');
+        return;
+      }
+      
+      alert('ไม่พบผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง');
 
     } catch (error) {
       console.error('Login error:', error);
@@ -73,85 +74,68 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <div className="login-header">
-          <div className="logo-section">
-            🎓
-          </div>
-          <h1>เข้าสู่ระบบ</h1>
-          <p>ระบบคำร้องฝึกงานวิชาชีพ</p>
+    <div className="login-page">
+      <header className="top-header">
+        <div className="header-content">
+            <img src={lascLogo} alt="LASC Logo" className="header-logo" />
         </div>
-
-        <form onSubmit={handleSubmit} className="login-form">
-          <div className="form-group">
-            <label htmlFor="userType">ประเภทผู้ใช้</label>
-            <select
-              id="userType"
-              name="userType"
-              value={formData.userType}
-              onChange={handleChange}
-              required
-            >
-              <option value="student">นักศึกษา</option>
-              <option value="advisor">อาจารย์ที่ปรึกษา</option>
-              <option value="company">บริษัท/สถานประกอบการ</option>
-              <option value="admin">ผู้ดูแลระบบ</option>
-            </select>
+      </header>
+      
+      <div className="login-wrapper">
+        <div className="login-card-redesigned">
+          <div className="left-panel">
+            <h2>Professional Internship</h2>
+            <p>( ระบบยื่นคำร้องขอเข้าฝึกประสบการณ์วิชาชีพ )</p>
+            <div className="university-logo-container">
+               <img src={sskruLogo} alt="SSKRU Logo" className="university-logo" />
+            </div>
           </div>
+          
+          <div className="vertical-divider"></div>
+          
+          <div className="right-panel">
+            <h3>ยินดีต้อนรับ</h3>
+            <form onSubmit={handleSubmit} className="redesigned-form">
+              <div className="input-group">
+                <input
+                  type="text"
+                  name="email"
+                  placeholder="Email (อีเมล)"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="input-group">
+                <input
+                  type="password"
+                  name="password"
+                  placeholder="Password (รหัสผ่าน)"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              
+              <div className="form-actions">
+                <label className="checkbox-container">
+                  <input 
+                    type="checkbox" 
+                    name="rememberMe"
+                    checked={formData.rememberMe}
+                    onChange={handleChange}
+                  />
+                  <span>Remember Me (จดจำการเข้าสู่ระบบ)</span>
+                </label>
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="email">อีเมล</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="กรอกอีเมลของคุณ"
-              required
-            />
+              <div className="button-group">
+                <button type="submit" className="btn-login">LOGIN</button>
+              </div>
+            </form>
           </div>
-
-          <div className="form-group">
-            <label htmlFor="password">รหัสผ่าน</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="กรอกรหัสผ่าน"
-              required
-            />
-          </div>
-
-          <div className="form-options">
-            <label className="remember-me">
-              <input type="checkbox" />
-              <span>จดจำฉันไว้</span>
-            </label>
-            <Link to="/forgot-password" className="forgot-link">
-              ลืมรหัสผ่าน?
-            </Link>
-          </div>
-
-          <button type="submit" className="login-btn">
-            เข้าสู่ระบบ
-          </button>
-        </form>
-
-        <div className="login-footer">
-          <p>
-            ยังไม่มีบัญชี?{' '}
-            <Link to="/register" className="register-link">
-              ลงทะเบียนเลย
-            </Link>
-          </p>
-          <Link to="/" className="back-link">
-            ← กลับหน้าแรก
-          </Link>
         </div>
+        <div className="bottom-bar"></div>
       </div>
     </div>
   );

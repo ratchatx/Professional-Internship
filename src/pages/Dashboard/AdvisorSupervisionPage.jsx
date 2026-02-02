@@ -4,6 +4,7 @@ import './AdminDashboardPage.css';
 
 const AdvisorSupervisionPage = () => {
     const navigate = useNavigate();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [supervisionList, setSupervisionList] = useState([]);
     const [advisorName, setAdvisorName] = useState('');
 
@@ -55,7 +56,9 @@ const AdvisorSupervisionPage = () => {
 
     return (
         <div className="admin-dashboard-container">
-            <aside className="sidebar">
+            <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+            <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
+            <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
                 <div className="sidebar-header">
                     <h2>👨‍🏫 อาจารย์ที่ปรึกษา</h2>
                 </div>

@@ -7,6 +7,7 @@ const AdminDashboardPage = () => {
   const [filter, setFilter] = useState('all');
   const [adminName, setAdminName] = useState('');
   const [allRequests, setAllRequests] = useState([]);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -111,7 +112,9 @@ const AdminDashboardPage = () => {
 
   return (
     <div className="admin-dashboard-container">
-      <aside className="sidebar">
+      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
+      <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <h2>👨‍💼 ผู้ดูแลระบบ</h2>
         </div>
@@ -123,6 +126,10 @@ const AdminDashboardPage = () => {
           <Link to="/admin-dashboard/students" className="nav-item">
             <span className="nav-icon">👥</span>
             <span>นักศึกษา</span>
+          </Link>
+          <Link to="/admin-dashboard/users" className="nav-item">
+            <span className="nav-icon">⚙️</span>
+            <span>จัดการผู้ใช้</span>
           </Link>
            <Link to="/admin-dashboard/payments" className="nav-item">
             <span className="nav-icon">💰</span>

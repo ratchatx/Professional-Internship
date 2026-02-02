@@ -8,6 +8,7 @@ const StudentListPage = () => {
   const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -59,7 +60,9 @@ const StudentListPage = () => {
 
   return (
     <div className="admin-dashboard-container">
-      <aside className="sidebar">
+      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
+      <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <h2>👨‍💼 ผู้ดูแลระบบ</h2>
         </div>
@@ -71,6 +74,10 @@ const StudentListPage = () => {
           <Link to="/admin-dashboard/students" className="nav-item active">
             <span className="nav-icon">👥</span>
             <span>นักศึกษา</span>
+          </Link>
+          <Link to="/admin-dashboard/users" className="nav-item">
+            <span className="nav-icon">⚙️</span>
+            <span>จัดการผู้ใช้</span>
           </Link>
           <Link to="/admin-dashboard/payments" className="nav-item">
             <span className="nav-icon">💰</span>

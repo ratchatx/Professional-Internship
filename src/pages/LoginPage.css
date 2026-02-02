@@ -1,101 +1,219 @@
-.login-container {
+.login-page {
   min-height: 100vh;
+  background-color: white;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Sarabun', sans-serif;
+}
+
+.top-header {
+  background-color: #4a0050; /* Deep purple */
+  padding: 10px 20px;
+  width: 100%;
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header-logo {
+  height: 60px;
+  object-fit: contain;
+}
+
+.login-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-card-redesigned {
+  background: white;
+  width: 100%;
+  max-width: 900px;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  min-height: 500px;
+  padding-bottom: 20px; /* Space for bottom bar if inside, but design looks like it overlaps or is at bottom */
+}
+
+/* The purple bar at the bottom of the card */
+.login-card-redesigned::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 15px;
+  background-color: #4a0050;
+}
+
+.left-panel {
+  flex: 1;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.left-panel h2 {
+  font-size: 1.5rem;
+  color: #333;
+  margin-bottom: 5px;
+  font-weight: normal;
+}
+
+.left-panel p {
+  color: #666;
+  font-size: 1rem;
+  margin-bottom: 40px;
+}
+
+.university-logo-container {
+  width: 200px;
+  height: 200px;
+  /* background-color: #2e7d32; Green circular bg in logo? Or logo itself is round */
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem;
 }
 
-.login-card {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+.university-logo {
   width: 100%;
-  max-width: 450px;
-  padding: 2.5rem;
+  height: auto;
 }
 
-.login-header {
-  text-align: center;
-  margin-bottom: 2rem;
+.vertical-divider {
+  width: 1px;
+  background-color: #888;
+  margin: 50px 0;
+  /* Or use border-left on right panel */
 }
 
-.logo-section {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.login-header h1 {
-  color: #333;
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.login-header p {
-  color: #666;
-  font-size: 0.95rem;
-}
-
-.login-form {
+.right-panel {
+  flex: 1;
+  padding: 40px 60px;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  justify-content: center;
+  border-left: 1px solid #ccc; /* Implementing divider here instead of div to match height better */
 }
 
-.form-group {
+.right-panel h3 {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 40px;
+  color: #000;
+}
+
+.redesigned-form {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 25px;
 }
 
-.form-group label {
-  color: #333;
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.form-group input {
-  padding: 0.875rem 1rem;
-  border: 2px solid #e1e8ed;
-  border-radius: 8px;
+.input-group input {
+  width: 100%;
+  padding: 10px 0;
+  border: none;
+  border-bottom: 1px solid #ccc;
   font-size: 1rem;
-  transition: border-color 0.3s, box-shadow 0.3s;
-}
-
-.form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  transition: border-color 0.3s;
 }
 
-.form-options {
+.input-group input:focus {
+  border-bottom-color: #4a0050;
+}
+
+.input-group input::placeholder {
+  color: #aaa;
+}
+
+.form-actions {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  font-size: 0.875rem;
+  align-items: flex-start;
+  font-size: 0.85rem;
+  color: #555;
+  margin-bottom: 20px;
 }
 
-.remember-me {
+.checkbox-container {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  color: #666;
-}
-
-.remember-me input {
+  gap: 8px;
   cursor: pointer;
 }
 
-.forgot-link {
-  color: #667eea;
+.checkbox-container input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.button-group {
+  display: flex;
+  gap: 15px;
+}
+
+.btn-login {
+  flex: 1;
+  background-color: #4a0050;
+  color: white;
+  border: none;
+  padding: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.btn-signup {
+  flex: 1;
+  background-color: white;
+  color: #4a0050;
+  border: 1px solid #4a0050;
+  padding: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border-radius: 4px;
+  text-align: center;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.forgot-link:hover {
-  text-decoration: underline;
+.btn-signup:hover {
+  background-color: #f9f9f9;
+}
+
+@media (max-width: 768px) {
+  .login-card-redesigned {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .right-panel {
+    border-left: none;
+    border-top: 1px solid #ccc;
+  }
+
+  .vertical-divider {
+    display: none;
+  }
 }
 
 .login-btn {

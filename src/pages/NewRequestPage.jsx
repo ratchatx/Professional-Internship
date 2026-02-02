@@ -8,6 +8,7 @@ const NewRequestPage = () => {
   const navigate = useNavigate();
   const [hasExistingRequest, setHasExistingRequest] = useState(false);
   const alertShown = useRef(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   useEffect(() => {
     // Check if user is logged in
@@ -55,6 +56,7 @@ const NewRequestPage = () => {
     studentEmail: '',
     studentId: '',
     studentYear: '',
+    lastSemesterGrade: '',
     studentMajor: '',
     studentFaculty: '',
     homeHouse: '',
@@ -116,6 +118,7 @@ const NewRequestPage = () => {
             email: formData.studentEmail,
           studentId: formData.studentId,
           year: formData.studentYear,
+          lastSemesterGrade: formData.lastSemesterGrade,
           major: formData.studentMajor,
           faculty: formData.studentFaculty,
           address: {
@@ -173,7 +176,9 @@ const NewRequestPage = () => {
 
   return (
     <div className="dashboard-container">
-      <aside className="sidebar">
+      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
+      <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <h2>🎓 นักศึกษา</h2>
         </div>
@@ -244,6 +249,23 @@ const NewRequestPage = () => {
                 <div className="form-group">
                   <label htmlFor="studentYear">ปีการศึกษา/ชั้นปี</label>
                   <input type="text" id="studentYear" name="studentYear" value={formData.studentYear} onChange={handleChange} placeholder="เช่น ปี 4" />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="lastSemesterGrade">เกรดเฉลี่ยเทอมล่าสุด</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="4.00"
+                    id="lastSemesterGrade"
+                    name="lastSemesterGrade"
+                    value={formData.lastSemesterGrade}
+                    onChange={handleChange}
+                    placeholder="เช่น 3.50"
+                  />
                 </div>
               </div>
 

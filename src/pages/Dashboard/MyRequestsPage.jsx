@@ -10,6 +10,7 @@ const MyRequestsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [myRequests, setMyRequests] = useState([]);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const mapStatus = (status) => {
     switch(status) {
@@ -78,8 +79,10 @@ const MyRequestsPage = () => {
 
   return (
     <div className="dashboard-container">
+      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       {/* Sidebar - Reused Structure */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <h2>🎓 นักศึกษา</h2>
         </div>

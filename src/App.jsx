@@ -12,6 +12,7 @@ import StudentListPage from './pages/Dashboard/StudentListPage';
 import PaymentProofPage from './pages/Dashboard/PaymentProofPage';
 import AdminPaymentCheckPage from './pages/Dashboard/AdminPaymentCheckPage';
 import AdminReportsPage from './pages/Dashboard/AdminReportsPage';
+import AdminUserManagementPage from './pages/Dashboard/AdminUserManagementPage';
 import AdvisorStudentListPage from './pages/Dashboard/AdvisorStudentListPage';
 import AdvisorSupervisionPage from './pages/Dashboard/AdvisorSupervisionPage';
 import RequestDetailsPage from './pages/Dashboard/RequestDetailsPage';
@@ -33,6 +34,7 @@ function App() {
         <Route path="/dashboard/payment-proof" element={<PaymentProofPage />} />
         <Route path="/admin-dashboard" element={<AdminDashboardPage />} />
         <Route path="/admin-dashboard/students" element={<StudentListPage />} />
+        <Route path="/admin-dashboard/users" element={<AdminUserManagementPage />} />
         <Route path="/admin-dashboard/payments" element={<AdminPaymentCheckPage />} />
         <Route path="/admin-dashboard/reports" element={<AdminReportsPage />} />
         <Route path="/advisor-dashboard" element={<AdvisorDashboardPage />} />

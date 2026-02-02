@@ -25,6 +25,7 @@ const StudentDetailsPage = () => {
           name: matched.full_name || matched.name || matched.studentName || '',
           email: matched.email || matched.studentEmail || '',
           year: matched.year || matched.studentYear || '',
+          lastSemesterGrade: matched.lastSemesterGrade || '',
           major: matched.major || matched.studentMajor || matched.department || '',
           faculty: matched.faculty || matched.studentFaculty || '',
           phone: matched.phone || matched.studentPhone || '',
@@ -52,6 +53,7 @@ const StudentDetailsPage = () => {
             name: s.name || req.studentName || s.full_name || '',
             email: s.email || s.studentEmail || req.contactEmail || '',
             year: s.year || s.studentYear || '',
+            lastSemesterGrade: s.lastSemesterGrade || '',
             major: s.major || s.studentMajor || req.department || '',
             faculty: s.faculty || s.studentFaculty || '',
             phone: s.phone || s.studentPhone || req.studentPhone || '',
@@ -123,6 +125,13 @@ const StudentDetailsPage = () => {
               <div className="form-group">
                 <label>คณะ</label>
                 <div>{student.faculty || '-'}</div>
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>เกรดเฉลี่ยเทอมล่าสุด</label>
+                <div>{student.lastSemesterGrade || '-'}</div>
               </div>
             </div>
 

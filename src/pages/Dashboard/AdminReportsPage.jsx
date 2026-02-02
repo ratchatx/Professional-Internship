@@ -7,6 +7,7 @@ const AdminReportsPage = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
   const [students, setStudents] = useState([]);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -59,28 +60,34 @@ const AdminReportsPage = () => {
 
   return (
     <div className="admin-dashboard-container">
-      <aside className="sidebar">
+      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
+      <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>ผู้ดูแลระบบ</h2>
+          <h2>👨‍💼 ผู้ดูแลระบบ</h2>
         </div>
         <nav className="sidebar-nav">
-          <Link to="/admin-dashboard" className="nav-item">
-            <span className="nav-icon"></span>
-            <span>หน้าหลัก</span>
-          </Link>
-          <Link to="/admin-dashboard/students" className="nav-item">
-            <span className="nav-icon"></span>
-            <span>นักศึกษา</span>
-          </Link>
-          <Link to="/admin-dashboard/payments" className="nav-item">
-            <span className="nav-icon"></span>
-            <span>ตรวจสอบการชำระเงิน</span>
-          </Link>
-          <Link to="/admin-dashboard/reports" className="nav-item active">
-            <span className="nav-icon"></span>
-            <span>รายงาน</span>
-          </Link>
-        </nav>
+            <Link to="/admin-dashboard" className="nav-item">
+                        <span className="nav-icon">🏠</span>
+                        <span>หน้าหลัก</span>
+            </Link>
+            <Link to="/admin-dashboard/students" className="nav-item">
+                        <span className="nav-icon">👥</span>
+                        <span>นักศึกษา</span>
+            </Link>
+            <Link to="/admin-dashboard/users" className="nav-item">
+                        <span className="nav-icon">⚙️</span>
+                        <span>จัดการผู้ใช้</span>
+            </Link>
+            <Link to="/admin-dashboard/payments" className="nav-item">
+                        <span className="nav-icon">💰</span>
+                        <span>ตรวจสอบการชำระเงิน</span>
+            </Link>
+            <Link to="/admin-dashboard/reports" className="nav-item active">
+                        <span className="nav-icon">📊</span>
+                        <span>รายงาน</span>
+            </Link>  
+                </nav>
         <div className="sidebar-footer">
           <button onClick={handleLogout} className="logout-btn">
             <span>← ออกจากระบบ</span>

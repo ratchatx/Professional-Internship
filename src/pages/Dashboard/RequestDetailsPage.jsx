@@ -127,6 +127,12 @@ const RequestDetailsPage = () => {
               <span className="detail-label">สาขาวิชา</span>
               <span className="detail-value">{request.department}</span>
             </div>
+            {details.student_info?.lastSemesterGrade && (
+              <div className="detail-item">
+                <span className="detail-label">เกรดเฉลี่ยเทอมล่าสุด</span>
+                <span className="detail-value">{details.student_info.lastSemesterGrade}</span>
+              </div>
+            )}
              <div className="detail-item">
               <span className="detail-label">วันที่ยื่นคำร้อง</span>
               <span className="detail-value">{new Date(request.submittedDate).toLocaleDateString('th-TH')}</span>

@@ -7,7 +7,9 @@ import './ProcessTracker.css';
 const DashboardPage = () => {
   const navigate = useNavigate();
   const [studentName, setStudentName] = useState('');
+  const [studentAvatar, setStudentAvatar] = useState(null);
   const [internshipRequests, setInternshipRequests] = useState([]);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -20,6 +22,7 @@ const DashboardPage = () => {
                  return;
               }
               setStudentName(user.full_name || user.name);
+              setStudentAvatar(user.avatar);
         
               // API Call Replaced with LocalStorage
               // const response = await api.get(`/requests?student_id=${user.user_id}`);
@@ -98,7 +101,9 @@ const DashboardPage = () => {
 
   return (
     <div className="dashboard-container">
-      <aside className="sidebar">
+      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
+      <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
           <h2>🎓 นักศึกษา</h2>
         </div>
@@ -133,9 +138,18 @@ const DashboardPage = () => {
 
       <main className="dashboard-main">
         <header className="dashboard-header">
-          <div>
-            <h1>สวัสดีค่ะ, {studentName}!</h1>
-            <p>จัดการและติดตามคำร้องฝึกงานของคุณ</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div className="profile-img-container" style={{ width: '60px', height: '60px', borderRadius: '50%', overflow: 'hidden', border: '2px solid #fff', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' }}>
+               {studentAvatar ? (
+                 <img src={studentAvatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+               ) : (
+                 <div style={{ width: '100%', height: '100%', background: '#cbd5e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>👤</div>
+               )}
+            </div>
+            <div>
+              <h1>สวัสดีค่ะ, {studentName}!</h1>
+              <p>จัดการและติดตามคำร้องฝึกงานของคุณ</p>
+            </div>
           </div>
           <Link to="/" className="home-link">
             หน้าแรก

@@ -6,6 +6,8 @@ import './AdminPaymentCheckPage.css';
 const AdminPaymentCheckPage = () => {
     const navigate = useNavigate();
     const [payments, setPayments] = useState([]);
+    const [selectedDepartment, setSelectedDepartment] = useState('all');
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     
     useEffect(() => {
         const checkAdmin = async () => {
@@ -21,21 +23,34 @@ const AdminPaymentCheckPage = () => {
                 return; 
             }
 
+            // Load users to get department info
+            const usersJson = await asyncStorage.getItem('users');
+            const users = usersJson ? JSON.parse(usersJson) : [];
+            const getDept = (id) => {
+                const u = users.find(u => u.studentId === id || u.student_code === id || u.username === id);
+                return u ? (u.department || u.major) : 'N/A';
+            };
+
             // In a real app, you would fetch from API. 
             // For now, let's load from localStorage where PaymentProofPage.jsx might have saved data,
             // or we can simulate some data if none exists
             const storedPayments = JSON.parse(localStorage.getItem('payment_proofs') || '[]');
             
+            let paymentData = [];
             // Mock data if empty for demonstration
             if (storedPayments.length === 0) {
                  const mockPayments = [
-                     { id: 1, studentId: '65000001', studentName: 'สมชาย ใจดี', date: '2023-10-25', status: 'pending', slipUrl: 'https://via.placeholder.com/150' },
-                     { id: 2, studentId: '65000002', studentName: 'สมหญิง รักเรียน', date: '2023-10-26', status: 'approved', slipUrl: 'https://via.placeholder.com/150' }
+                     { id: 1, studentId: '65000001', studentName: 'สมชาย ใจดี', date: '2023-10-25', status: 'pending', slipUrl: 'https://via.placeholder.com/150', department: 'วิศวกรรมคอมพิวเตอร์' },
+                     { id: 2, studentId: '65000002', studentName: 'สมหญิง รักเรียน', date: '2023-10-26', status: 'approved', slipUrl: 'https://via.placeholder.com/150', department: 'วิศวกรรมไฟฟ้า' }
                  ];
-                 setPayments(mockPayments);
+                 paymentData = mockPayments;
             } else {
-                 setPayments(storedPayments);
+                 paymentData = storedPayments.map(p => ({
+                     ...p,
+                     department: p.department || getDept(p.studentId) || 'ไม่ระบุ'
+                 }));
             }
+            setPayments(paymentData);
 
         };
         checkAdmin();
@@ -60,9 +75,19 @@ const AdminPaymentCheckPage = () => {
          alert('ปฏิเสธการชำระเงินเรียบร้อย');
     };
     
+    // Get unique departments
+    const departments = [...new Set(payments.map(p => p.department).filter(Boolean))];
+
+    const filteredPayments = payments.filter(p => {
+        if (selectedDepartment === 'all') return true;
+        return p.department === selectedDepartment;
+    });
+
     return (
         <div className="admin-dashboard-container">
-            <aside className="sidebar">
+            <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+            <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
+            <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
                 <div className="sidebar-header">
                     <h2>👨‍💼 ผู้ดูแลระบบ</h2>
                 </div>
@@ -75,6 +100,10 @@ const AdminPaymentCheckPage = () => {
                         <span className="nav-icon">👥</span>
                         <span>นักศึกษา</span>
                     </Link>
+                    <Link to="/admin-dashboard/users" className="nav-item">
+                        <span className="nav-icon">⚙️</span>
+                        <span>จัดการผู้ใช้</span>
+                    </Link>
                     <Link to="/admin-dashboard/payments" className="nav-item active">
                         <span className="nav-icon">💰</span>
                         <span>ตรวจสอบการชำระเงิน</span>
@@ -82,7 +111,7 @@ const AdminPaymentCheckPage = () => {
                     <Link to="/admin-dashboard/reports" className="nav-item">
                         <span className="nav-icon">📊</span>
                         <span>รายงาน</span>
-                    </Link>
+                    </Link>  
                 </nav>
                 <div className="sidebar-footer">
                     <button onClick={handleLogout} className="logout-btn">
@@ -102,11 +131,25 @@ const AdminPaymentCheckPage = () => {
 
                 <div className="content-section">
                     <div className="requests-table">
+                        <div className="filter-group" style={{display: 'flex', gap: 10, alignItems: 'center'}}>
+                        <label>คัดกรองสาขา:</label>
+                        <select 
+                            value={selectedDepartment} 
+                            onChange={(e) => setSelectedDepartment(e.target.value)}
+                            style={{padding: '5px 10px', borderRadius: '4px', border: '1px solid #ddd'}}
+                        >
+                            <option value="all">ทั้งหมด</option>
+                            {departments.map((dept, idx) => (
+                                <option key={idx} value={dept}>{dept}</option>
+                            ))}
+                        </select>
+                    </div><br/>
                         <table>
                             <thead>
                                 <tr>
                                     <th>รหัสนักศึกษา</th>
                                     <th>ชื่อ-นามสกุล</th>
+                                    <th>สาขา</th>
                                     <th>วันที่ส่ง</th>
                                     <th>หลักฐาน</th>
                                     <th>สถานะ</th>
@@ -114,10 +157,11 @@ const AdminPaymentCheckPage = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {payments.map((payment) => (
+                                {filteredPayments.map((payment) => (
                                     <tr key={payment.id}>
                                         <td>{payment.studentId}</td>
                                         <td>{payment.studentName}</td>
+                                        <td>{payment.department}</td>
                                         <td>{payment.date}</td>
                                         <td>
                                             <a href={payment.slipUrl} target="_blank" rel="noopener noreferrer" style={{color: '#667eea', textDecoration: 'underline'}}>
@@ -139,8 +183,8 @@ const AdminPaymentCheckPage = () => {
                                         </td>
                                     </tr>
                                 ))}
-                                {payments.length === 0 && (
-                                    <tr><td colSpan="6" style={{textAlign: 'center'}}>ไม่พบรายการแจ้งชำระเงิน</td></tr>
+                                {filteredPayments.length === 0 && (
+                                    <tr><td colSpan="7" style={{textAlign: 'center'}}>ไม่พบรายการแจ้งชำระเงิน</td></tr>
                                 )}
                             </tbody>
                         </table>

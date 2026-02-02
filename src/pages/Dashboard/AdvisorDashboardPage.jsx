@@ -4,6 +4,7 @@ import './AdminDashboardPage.css'; // Reuse Admin styles
 
 const AdvisorDashboardPage = () => {
   const navigate = useNavigate();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [filter, setFilter] = useState('all');
   const [advisorName, setAdvisorName] = useState('');
   const [allRequests, setAllRequests] = useState([]);
@@ -66,22 +67,24 @@ const AdvisorDashboardPage = () => {
 
   return (
     <div className="admin-dashboard-container">
-      <aside className="sidebar">
+      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
+      <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>อาจารย์ที่ปรึกษา</h2>
+          <h2>👨‍🏫 อาจารย์ที่ปรึกษา</h2>
         </div>
         <nav className="sidebar-nav">
           <Link to="/advisor-dashboard" className="nav-item active">
-            <span className="nav-icon"></span>
-            <span>หน้าหลัก</span>
+              <span className="nav-icon">🏠</span>
+              <span>หน้าหลัก</span>
           </Link>
           <Link to="/advisor-dashboard/students" className="nav-item">
-            <span className="nav-icon"></span>
-            <span>รายชื่อนักศึกษาฝึกงาน</span>
+              <span className="nav-icon">🎓</span>
+              <span>รายชื่อนักศึกษาฝึกงาน</span>
           </Link>
           <Link to="/advisor-dashboard/supervision" className="nav-item">
-            <span className="nav-icon"></span>
-            <span>ตารางนิเทศงาน</span>
+              <span className="nav-icon">🚗</span>
+              <span>ตารางนิเทศงาน</span>
           </Link>
         </nav>
         <div className="sidebar-footer">
