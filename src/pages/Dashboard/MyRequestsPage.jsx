@@ -37,8 +37,13 @@ const MyRequestsPage = () => {
                 const myReqs = allRequests.filter(req => 
                     req.studentId == user.student_code || 
                     req.studentId == user.username ||
-                    req.studentName === user.full_name
-                );
+                    req.studentName === user.full_name ||
+                    (user.email && req.studentId === user.email)
+                ).map(req => ({
+                    ...req,
+                    companyName: req.companyName || req.company || 'Unknown Company',
+                    position: req.position || 'Unknown Position'
+                }));
 
                 setMyRequests(myReqs);
             } else {
@@ -59,8 +64,10 @@ const MyRequestsPage = () => {
   };
 
   const filteredRequests = myRequests.filter(req => {
-    const matchesSearch = req.companyName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          req.position.toLowerCase().includes(searchTerm.toLowerCase());
+    const term = searchTerm.toLowerCase();
+    const company = (req.companyName || '').toLowerCase();
+    const position = (req.position || '').toLowerCase();
+    const matchesSearch = company.includes(term) || position.includes(term);
     const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
     return matchesSearch && matchesStatus;
   });

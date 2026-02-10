@@ -15,6 +15,7 @@ import AdminReportsPage from './pages/Dashboard/AdminReportsPage';
 import AdminUserManagementPage from './pages/Dashboard/AdminUserManagementPage';
 import AdvisorStudentListPage from './pages/Dashboard/AdvisorStudentListPage';
 import AdvisorSupervisionPage from './pages/Dashboard/AdvisorSupervisionPage';
+import CompanyStudentListPage from './pages/Dashboard/CompanyStudentListPage';
 import RequestDetailsPage from './pages/Dashboard/RequestDetailsPage';
 import StudentDetailsPage from './pages/Dashboard/StudentDetailsPage';
 import './App.css';
@@ -41,6 +42,7 @@ function App() {
         <Route path="/advisor-dashboard/students" element={<AdvisorStudentListPage />} />
         <Route path="/advisor-dashboard/supervision" element={<AdvisorSupervisionPage />} />
         <Route path="/company-dashboard" element={<CompanyDashboardPage />} />
+        <Route path="/company-dashboard/interns" element={<CompanyStudentListPage />} />
       </Routes>
     </Router>
   );

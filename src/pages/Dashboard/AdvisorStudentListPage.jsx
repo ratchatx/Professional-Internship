@@ -6,7 +6,7 @@ import './StudentListPage.css';
 const AdvisorStudentListPage = () => {
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [students, setStudents] = useState([]);
+    const [myRequests, setMyRequests] = useState([]);
     const [advisorDept, setAdvisorDept] = useState('');
 
     useEffect(() => {
@@ -22,34 +22,39 @@ const AdvisorStudentListPage = () => {
             return;
         }
 
-        // Assuming advisor object has a 'department' field
-        const myDept = user.department || 'วิศวกรรมคอมพิวเตอร์'; // Default or from user data
+        const myDept = user.department || user.major || 'วิศวกรรมคอมพิวเตอร์'; 
         setAdvisorDept(myDept);
 
-        // Load all users, filter by student role AND matching department
-        const allUsers = JSON.parse(localStorage.getItem('users') || '[]');
-        
-        // Mock data logic for demo if users are sparse
-        let studentList = allUsers.filter(u => u.role === 'student' && u.major === myDept);
-        
-        // If empty for demo, create some mock students in this major
-        if (studentList.length === 0) {
-             const mockStudents = [
-                { student_code: '65000101', full_name: 'นายรักเรียน เพียรศึกษา', major: myDept, email: 'std1@example.com', phone: '081-111-1234' },
-                { student_code: '65000102', full_name: 'นางสาวตั้งใจ เรียนดี', major: myDept, email: 'std2@example.com', phone: '089-999-8888' },
-                 // Add one from another major to prove filtering works effectively (in real scenario handled by API)
-            ];
-            // Filter only matching major
-            studentList = mockStudents.filter(s => s.major === myDept);
-        }
+        const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+        const filteredRequests = allRequests.filter(req => {
+            return req.department === myDept;
+        });
 
-        setStudents(studentList);
+        setMyRequests(filteredRequests);
 
     }, [navigate]);
 
     const handleLogout = () => {
         localStorage.removeItem('user');
         navigate('/login');
+    };
+
+    const getStatusBadge = (status) => {
+        const statusStyles = {
+          'รออาจารย์ที่ปรึกษาอนุมัติ': { bg: '#fff3cd', color: '#856404' },
+          'รอผู้ดูแลระบบตรวจสอบ': { bg: '#c3dafe', color: '#434190' },
+          'รอสถานประกอบการตอบรับ': { bg: '#e2e8f0', color: '#2d3748' },
+          'อนุมัติแล้ว': { bg: '#d4edda', color: '#155724' },
+          'ไม่อนุมัติ (อาจารย์)': { bg: '#f8d7da', color: '#721c24' },
+          'ปฏิเสธ': { bg: '#f8d7da', color: '#721c24' }
+        };
+        const style = statusStyles[status] || { bg: '#e2e3e5', color: '#383d41' };
+        
+        return (
+          <span className="status-badge" style={{ backgroundColor: style.bg, color: style.color }}>
+            {status}
+          </span>
+        );
     };
 
     return (
@@ -84,46 +89,48 @@ const AdvisorStudentListPage = () => {
             <main className="admin-main">
                 <header className="admin-header">
                     <div>
-                        <h1>รายชื่อนักศึกษาในที่ปรึกษา</h1>
+                        <h1>คำร้องนักศึกษาในที่ปรึกษา</h1>
                         <p>สาขาวิชา: {advisorDept}</p>
                     </div>
                 </header>
 
                 <div className="content-section">
                     <div className="section-header">
-                        <h2>นักศึกษาทั้งหมด ({students.length})</h2>
+                        <h2>รายการคำร้องทั้งหมด ({myRequests.length})</h2>
                     </div>
 
-                    <div className="table-container">
-                        <table>
+                    <div className="table-responsive">
+                        <table className="data-table">
                             <thead>
                                 <tr>
                                     <th>รหัสนักศึกษา</th>
                                     <th>ชื่อ-นามสกุล</th>
-                                    <th>สาขาวิชา</th>
-                                    <th>อีเมล</th>
-                                    <th>เบอร์โทร</th>
-                                    <th>การกระทำ</th>
+                                    <th>สถานประกอบการ</th>
+                                    <th>วันที่ส่ง</th>
+                                    <th>สถานะ</th>
+                                    <th>การจัดการ</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {students.length > 0 ? (
-                                    students.map((student, index) => (
-                                        <tr key={index}>
-                                            <td>{student.student_code || student.username}</td>
-                                            <td>{student.full_name || student.name}</td>
-                                            <td>{student.major}</td>
-                                            <td>{student.email || '-'}</td>
-                                            <td>{student.phone || '-'}</td>
-                                            <td>
-                                                <Link to={`/dashboard/student/${student.student_code || student.username}`} className="btn-view" style={{border: '1px solid #ddd', padding: '6px 8px', borderRadius: 6}}>ดูรายละเอียด</Link>
+                                {myRequests.length > 0 ? (
+                                    myRequests.map((req, index) => (
+                                        <tr key={req.id || index}>
+                                            <td data-label="รหัสนักศึกษา">{req.studentId}</td>
+                                            <td data-label="ชื่อ-นามสกุล">{req.studentName}</td>
+                                            <td data-label="สถานประกอบการ">{req.company}</td>
+                                            <td data-label="วันที่ส่ง">{new Date(req.submittedDate).toLocaleDateString('th-TH')}</td>
+                                            <td data-label="สถานะ">{getStatusBadge(req.status)}</td>
+                                            <td data-label="การจัดการ">
+                                                <Link to={`/dashboard/request/${req.id}`} className="view-btn">
+                                                    ตรวจสอบ
+                                                </Link>
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
                                         <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
-                                            ไม่พบรายชื่อนักศึกษาในสาขานี้
+                                            ไม่พบคำร้องจากนักศึกษาในสาขานี้
                                         </td>
                                     </tr>
                                 )}

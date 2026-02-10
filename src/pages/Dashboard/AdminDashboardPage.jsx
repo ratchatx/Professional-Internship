@@ -34,7 +34,9 @@ const AdminDashboardPage = () => {
 
   const filteredRequests = allRequests.filter(req => {
     if (filter === 'all') return true;
-    return req.status === filter; // Using Thai status directly because saved that way
+    if (filter === 'pending_admin') return req.status === 'รอผู้ดูแลระบบตรวจสอบ' || req.status === 'รอผู้ดูแลระบบอนุมัติ';
+    if (filter === 'rejected') return req.status.includes('ไม่อนุมัติ') || req.status === 'ปฏิเสธ';
+    return req.status === filter; 
   });
 
 
@@ -48,21 +50,21 @@ const AdminDashboardPage = () => {
     },
     { 
       title: 'รอตรวจสอบ (Admin)', 
-      value: allRequests.filter(r => r.status === 'รอผู้ดูแลระบบอนุมัติ').length, 
+      value: allRequests.filter(r => r.status === 'รอผู้ดูแลระบบตรวจสอบ' || r.status === 'รอผู้ดูแลระบบอนุมัติ').length, 
       icon: '⏳', 
       color: '#f093fb' 
     },
     { 
-      title: 'อนุมัติแล้ว', 
+      title: 'รอสถานประกอบการ', 
+      value: allRequests.filter(r => r.status === 'รอสถานประกอบการตอบรับ').length, 
+      icon: '🏢', 
+      color: '#a0aec0' 
+    },
+    { 
+      title: 'อนุมัติแล้ว (สมบูรณ์)', 
       value: allRequests.filter(r => r.status === 'อนุมัติแล้ว').length, 
       icon: '✅', 
       color: '#43e97b' 
-    },
-    { 
-      title: 'ไม่อนุมัติ', 
-      value: allRequests.filter(r => r.status.includes('ไม่อนุมัติ')).length, 
-      icon: '❌', 
-      color: '#fa709a' 
     }
   ];
 
@@ -75,11 +77,12 @@ const AdminDashboardPage = () => {
   };
 
   const handleApprove = (requestId) => {
-    // Step 3: Admin Approve -> Approved
-    const updated = allRequests.map(r => r.id === requestId ? {...r, status: 'อนุมัติแล้ว'} : r);
+    // Step 3: Admin check -> Send to Company
+    const newStatus = 'รอสถานประกอบการตอบรับ';
+    const updated = allRequests.map(r => r.id === requestId ? {...r, status: newStatus} : r);
     setAllRequests(updated);
     localStorage.setItem('requests', JSON.stringify(updated));
-    alert(`อนุมัติคำร้องเลขที่ ${requestId} สำเร็จ (สถานะ: อนุมัติแล้ว)`);
+    alert(`ตรวจสอบและส่งคำขอไปยังสถานประกอบการเรียบร้อยแล้ว (สถานะ: ${newStatus})`);
   };
 
   const handleUpdateStatus = (requestId, newStatus) => {
@@ -102,10 +105,13 @@ const AdminDashboardPage = () => {
   const getStatusBadge = (status) => {
     const statusStyles = {
       'รออาจารย์ที่ปรึกษาอนุมัติ': { bg: '#e2e3e5', color: '#666' },
+      'รอผู้ดูแลระบบตรวจสอบ': { bg: '#fff3cd', color: '#856404' },
       'รอผู้ดูแลระบบอนุมัติ': { bg: '#fff3cd', color: '#856404' },
+      'รอสถานประกอบการตอบรับ': { bg: '#e2e8f0', color: '#2d3748' },
       'อนุมัติแล้ว': { bg: '#d4edda', color: '#155724' },
       'ไม่อนุมัติ (Admin)': { bg: '#f8d7da', color: '#721c24' },
-      'ไม่อนุมัติ (อาจารย์)': { bg: '#f8d7da', color: '#721c24' }
+      'ไม่อนุมัติ (อาจารย์)': { bg: '#f8d7da', color: '#721c24' },
+      'ปฏิเสธ': { bg: '#f8d7da', color: '#721c24' }
     };
     return statusStyles[status] || { bg: '#e2e3e5', color: '#383d41' };
   };
@@ -184,9 +190,15 @@ const AdminDashboardPage = () => {
               </button>
               <button 
                 className={`filter-btn ${filter === 'pending_admin' ? 'active' : ''}`}
-                onClick={() => setFilter('รอผู้ดูแลระบบอนุมัติ')}
+                onClick={() => setFilter('pending_admin')}
               >
                 รอตรวจสอบ
+              </button>
+              <button 
+                className={`filter-btn ${filter === 'รอสถานประกอบการตอบรับ' ? 'active' : ''}`}
+                onClick={() => setFilter('รอสถานประกอบการตอบรับ')}
+              >
+                รอสถานประกอบการ
               </button>
               <button 
                 className={`filter-btn ${filter === 'approved' ? 'active' : ''}`}
@@ -245,12 +257,12 @@ const AdminDashboardPage = () => {
                           >
                             ลบ
                           </button>
-                          {request.status === 'รอผู้ดูแลระบบอนุมัติ' && (
+                          {(request.status === 'รอผู้ดูแลระบบตรวจสอบ' || request.status === 'รอผู้ดูแลระบบอนุมัติ') && (
                             <>
                               <button 
                                 className="btn-approve"
                                 onClick={() => handleApprove(request.id)}
-                                title="อนุมัติ"
+                                title="ส่งต่อให้สถานประกอบการ"
                               >
                                 ✓
                               </button>

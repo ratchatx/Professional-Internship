@@ -30,8 +30,23 @@ const NewRequestPage = () => {
       studentPhone: user.phone || prev.studentPhone
     }));
 
-    // Optional: Check for existing active request via API
-    // For now, we'll keep it simple or implement check later
+    // Optional: Check for existing active request
+    const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+    // Find any request that is NOT rejected
+    const REJECTED_STATUSES = ['ไม่อนุมัติ (อาจารย์)', 'ไม่อนุมัติ (Admin)', 'ปฏิเสธ'];
+    
+    // Check against multiple possible ID fields for robustness
+    const activeRequest = allRequests.find(req => 
+      (req.studentId == user.student_code || 
+       req.studentId == user.username || 
+       (user.email && req.studentId === user.email)) &&
+      !REJECTED_STATUSES.includes(req.status)
+    );
+
+    if (activeRequest) {
+      setHasExistingRequest(true);
+    }
+
   }, [navigate]);
 
   const handleLogout = () => {
@@ -86,8 +101,9 @@ const NewRequestPage = () => {
       setStudentPhoto(null);
       return;
     }
-    if (file.type !== 'application/pdf') {
-      alert('กรุณาอัพโหลดไฟล์เป็นรูปแบบ PDF เท่านั้น');
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('กรุณาอัพโหลดไฟล์รูปภาพ (JPG, PNG) หรือ PDF เท่านั้น');
       e.target.value = null;
       return;
     }
@@ -150,6 +166,26 @@ const NewRequestPage = () => {
 
       // Start: Add to LocalStorage for Demo
       const existingRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+      
+      // Update User Avatar if photo is an image
+      if (studentPhoto && studentPhoto.type.startsWith('image/') && photoData) {
+         try {
+             // Update local user object
+             const latestUser = { ...user, avatar: photoData };
+             localStorage.setItem('user', JSON.stringify(latestUser));
+             
+             // Update users list in storage if it exists (for sync across simulated users)
+             const allUsers = JSON.parse(localStorage.getItem('users') || '[]');
+             const userIndex = allUsers.findIndex(u => u.username === user.username || u.email === user.email);
+             if (userIndex !== -1) {
+                 allUsers[userIndex].avatar = photoData;
+                 localStorage.setItem('users', JSON.stringify(allUsers));
+             }
+         } catch (err) {
+             console.error("Failed to update user avatar", err);
+         }
+      }
+
       const newRequest = {
         id: Date.now().toString(),
         studentId: formData.studentId || user.student_code || user.username || 'N/A',
@@ -160,7 +196,8 @@ const NewRequestPage = () => {
         submittedDate: new Date().toISOString(),
         status: 'รออาจารย์ที่ปรึกษาอนุมัติ', // Step 1: Send to Advisor
         details: payload,
-        studentPhotoName: studentPhoto ? studentPhoto.name : null
+        studentPhotoName: studentPhoto ? studentPhoto.name : null,
+        studentAvatar: (studentPhoto && studentPhoto.type.startsWith('image/')) ? photoData : null 
       };
       existingRequests.push(newRequest);
       localStorage.setItem('requests', JSON.stringify(existingRequests));
@@ -219,6 +256,56 @@ const NewRequestPage = () => {
             <p>กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง</p>
           </div>
 
+
+          {/* Modal for existing request */}
+          {hasExistingRequest && (
+            <div className="modal-overlay" style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999
+            }}>
+              <div className="modal-content" style={{
+                background: 'white',
+                padding: '2rem',
+                borderRadius: '8px',
+                width: '90%',
+                maxWidth: '500px',
+                textAlign: 'center',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+              }}>
+                <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>⚠️</span>
+                <h2 style={{ marginBottom: '1rem', color: '#e53e3e' }}>ไม่สามารถยื่นคำร้องใหม่ได้</h2>
+                <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem', lineHeight: '1.6' }}>
+                  คุณมีคำร้องที่อยู่ระหว่างการดำเนินการ <br/>
+                  ระบบจำกัดการยื่นคำร้อง 1 รายการต่อ 1 บัญชีเท่านั้น
+                </p>
+                <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                  <button 
+                    onClick={() => navigate('/dashboard')}
+                    className="btn-secondary"
+                    style={{ padding: '0.75rem 1.5rem', cursor: 'pointer' }}
+                  >
+                    กลับหน้าหลัก
+                  </button>
+                  <button 
+                    onClick={() => navigate('/dashboard/my-requests')}
+                    className="btn-primary"
+                    style={{ padding: '0.75rem 1.5rem', cursor: 'pointer', background: '#3182ce', color: 'white', border: 'none', borderRadius: '4px' }}
+                  >
+                    ดูสถานะคำร้อง
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="request-form">
             <div className="form-section">
               <h2>ข้อมูลส่วนตัวนักศึกษา</h2>
@@ -306,12 +393,12 @@ const NewRequestPage = () => {
                 <input type="email" id="studentEmail" name="studentEmail" value={formData.studentEmail} onChange={handleChange} placeholder="student@university.ac.th" />
               </div>
               <div className="form-group">
-                <label htmlFor="studentPhoto">อัพโหลดรูปถ่ายนักศึกษา (PDF)</label>
+                <label htmlFor="studentPhoto">อัพโหลดรูปถ่ายนักศึกษา (JPG/PNG หรือ PDF)</label>
                 <input
                   type="file"
                   id="studentPhoto"
                   name="studentPhoto"
-                  accept="application/pdf"
+                  accept="image/png, image/jpeg, application/pdf"
                   onChange={handleFileChange}
                 />
                 {studentPhoto && (

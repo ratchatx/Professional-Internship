@@ -36,11 +36,16 @@ const RequestDetailsPage = () => {
     const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
     let updatedRequests = [];
     let newStatus = '';
+    let alertMsg = 'อนุมัติคำร้องเรียบร้อยแล้ว';
 
     if (userRole === 'advisor') {
-      newStatus = 'รอผู้ดูแลระบบอนุมัติ';
+      newStatus = 'รอผู้ดูแลระบบตรวจสอบ';
     } else if (userRole === 'admin') {
+      newStatus = 'รอสถานประกอบการตอบรับ';
+      alertMsg = 'ตรวจสอบและส่งคำขอไปยังสถานประกอบการเรียบร้อยแล้ว';
+    } else if (userRole === 'company') {
       newStatus = 'อนุมัติแล้ว';
+      alertMsg = 'ตอบรับนักศึกษาเข้าฝึกงานเรียบร้อยแล้ว';
     }
 
     if (newStatus) {
@@ -49,13 +54,13 @@ const RequestDetailsPage = () => {
       );
       localStorage.setItem('requests', JSON.stringify(updatedRequests));
       setRequest({ ...request, status: newStatus });
-      alert('อนุมัติคำร้องเรียบร้อยแล้ว');
+      alert(alertMsg);
       navigate(-1);
     }
   };
 
   const handleReject = () => {
-    const reason = prompt('กรุณาระบุเหตุผลที่ไม่อนุมัติ:');
+    const reason = prompt('กรุณาระบุเหตุผลที่ไม่อนุมัติ/ปฏิเสธ:');
     if (!reason) return;
 
     const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
@@ -65,6 +70,8 @@ const RequestDetailsPage = () => {
       newStatus = 'ไม่อนุมัติ (อาจารย์)';
     } else if (userRole === 'admin') {
       newStatus = 'ไม่อนุมัติ (Admin)';
+    } else if (userRole === 'company') {
+      newStatus = 'ปฏิเสธ';
     }
 
     if (newStatus) {
@@ -73,7 +80,7 @@ const RequestDetailsPage = () => {
       );
       localStorage.setItem('requests', JSON.stringify(updatedRequests));
       setRequest({ ...request, status: newStatus, rejectReason: reason });
-      alert('บันทึกผลการไม่อนุมัติเรียบร้อย');
+      alert('บันทึกผลการไม่อนุมัติ/ปฏิเสธเรียบร้อย');
       navigate(-1);
     }
   };
@@ -81,10 +88,13 @@ const RequestDetailsPage = () => {
   const getStatusBadge = (status) => {
     const statusStyles = {
       'รออาจารย์ที่ปรึกษาอนุมัติ': { bg: '#fff3cd', color: '#856404' },
-      'รอผู้ดูแลระบบอนุมัติ': { bg: '#c3dafe', color: '#434190' },
+      'รอผู้ดูแลระบบตรวจสอบ': { bg: '#c3dafe', color: '#434190' },
+      'รอผู้ดูแลระบบอนุมัติ': { bg: '#c3dafe', color: '#434190' }, // Legacy support
+      'รอสถานประกอบการตอบรับ': { bg: '#e2e8f0', color: '#2d3748' },
       'อนุมัติแล้ว': { bg: '#d4edda', color: '#155724' },
       'ไม่อนุมัติ (อาจารย์)': { bg: '#f8d7da', color: '#721c24' },
-      'ไม่อนุมัติ (Admin)': { bg: '#f8d7da', color: '#721c24' }
+      'ไม่อนุมัติ (Admin)': { bg: '#f8d7da', color: '#721c24' },
+      'ปฏิเสธ': { bg: '#f8d7da', color: '#721c24' }
     };
     const style = statusStyles[status] || { bg: '#e2e3e5', color: '#383d41' };
     return { ...style, label: status };
@@ -97,7 +107,8 @@ const RequestDetailsPage = () => {
 
   // Determine if current user can execute actions
   const canApprove = (userRole === 'advisor' && request.status === 'รออาจารย์ที่ปรึกษาอนุมัติ') ||
-                     (userRole === 'admin' && request.status === 'รอผู้ดูแลระบบอนุมัติ');
+                     (userRole === 'admin' && (request.status === 'รอผู้ดูแลระบบตรวจสอบ' || request.status === 'รอผู้ดูแลระบบอนุมัติ')) ||
+                     (userRole === 'company' && request.status === 'รอสถานประกอบการตอบรับ');
 
   return (
     <div className="request-details-container">

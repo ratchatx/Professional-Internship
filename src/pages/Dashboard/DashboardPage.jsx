@@ -17,10 +17,24 @@ const DashboardPage = () => {
             const userStr = localStorage.getItem('user');
             if (userStr) {
               const user = JSON.parse(userStr);
-              if (user.role !== 'student') {
+
+              if (user.role === 'admin') {
                  navigate('/admin-dashboard'); 
                  return;
               }
+              if (user.role === 'advisor') {
+                 navigate('/advisor-dashboard'); 
+                 return;
+              }
+              if (user.role === 'company') {
+                 navigate('/company-dashboard'); 
+                 return;
+              }
+              if (user.role !== 'student') {
+                 navigate('/login'); 
+                 return;
+              }
+
               setStudentName(user.full_name || user.name);
               setStudentAvatar(user.avatar);
         
@@ -68,11 +82,11 @@ const DashboardPage = () => {
   // Map extended status to steps (0-4)
   const getStepIndex = (status) => {
       if (!status) return 0;
-      if (status === 'รออาจารย์ที่ปรึกษาอนุมัติ' || status === 'รอผู้ดูแลระบบอนุมัติ') return 1;
-      if (status === 'อนุมัติแล้ว') return 2;
-      if (status === 'ออกฝึกงาน') return 3;
-      if (status === 'ฝึกงานเสร็จแล้ว') return 4;
-      if (status.includes('ไม่อนุมัติ')) return 1; // Stay at pending/reject state visually or handle differently
+      if (['รออาจารย์ที่ปรึกษาอนุมัติ', 'รอผู้ดูแลระบบตรวจสอบ', 'รอผู้ดูแลระบบอนุมัติ'].includes(status)) return 1;
+      if (['รอสถานประกอบการตอบรับ'].includes(status)) return 2;
+      if (['อนุมัติแล้ว', 'ออกฝึกงาน'].includes(status)) return 3;
+      if (['ฝึกงานเสร็จแล้ว'].includes(status)) return 4;
+      if (status.includes('ไม่อนุมัติ') || status.includes('ปฏิเสธ')) return 1; 
       return 0;
   };
 
@@ -80,24 +94,31 @@ const DashboardPage = () => {
 
   const steps = [
     { title: 'ส่งคำร้อง', icon: '📝' },
-    { title: 'รออนุมัติ', icon: '⏳' },
+    { title: 'รอตรวจสอบ', icon: '🔍' },
+    { title: 'รอตอบรับ', icon: '🏢' },
     { title: 'อนุมัติแล้ว', icon: '✅' },
-    { title: 'ออกฝึกงาน', icon: '🏢' },
-    { title: 'ฝึกงานเสร็จแล้ว', icon: '🎓' }
+    { title: 'เสร็จสิ้น', icon: '🎓' }
   ];
 
   const getStatusBadge = (status) => {
     const statusStyles = {
       'รออาจารย์ที่ปรึกษาอนุมัติ': { bg: '#fff3cd', color: '#856404' },
+      'รอผู้ดูแลระบบตรวจสอบ': { bg: '#c3dafe', color: '#434190' },
       'รอผู้ดูแลระบบอนุมัติ': { bg: '#c3dafe', color: '#434190' },
+      'รอสถานประกอบการตอบรับ': { bg: '#e2e8f0', color: '#2d3748' },
       'อนุมัติแล้ว': { bg: '#d4edda', color: '#155724' },
       'ไม่อนุมัติ (อาจารย์)': { bg: '#f8d7da', color: '#721c24' },
       'ไม่อนุมัติ (Admin)': { bg: '#f8d7da', color: '#721c24' },
+      'ปฏิเสธ': { bg: '#f8d7da', color: '#721c24' },
       'ออกฝึกงาน': { bg: '#c3dafe', color: '#434190' },
       'ฝึกงานเสร็จแล้ว': { bg: '#fed7e2', color: '#702459' }
     };
     return statusStyles[status] || { bg: '#e2e3e5', color: '#383d41' };
   };
+
+  const hasActiveRequest = internshipRequests.some(req => 
+    !['ไม่อนุมัติ (อาจารย์)', 'ไม่อนุมัติ (Admin)', 'ปฏิเสธ'].includes(req.status)
+  );
 
   return (
     <div className="dashboard-container">
@@ -184,13 +205,8 @@ const DashboardPage = () => {
                        strokeDashoffset: (() => {
                           const r = 120;
                           const c = 2 * Math.PI * r;
-                          const s = currentRequest.status;
-                          let progress = 0;
-                          if (s === 'รออนุมัติ') progress = 0.25;
-                          else if (s === 'อนุมัติแล้ว') progress = 0.50;
-                          else if (s === 'ออกฝึกงาน') progress = 0.75;
-                          else if (s === 'ฝึกงานเสร็จแล้ว') progress = 1.0;
-                          else if (s === 'ไม่อนุมัติ') progress = 0.25; // Stop at pending step but red
+                          const idx = getStepIndex(currentRequest.status);
+                          const progress = idx / 4; 
                           return c - (progress * c);
                        })()
                     }}
@@ -229,26 +245,19 @@ const DashboardPage = () => {
                     let isActive = false; 
                     let isCompleted = false;
                     let isRejected = false;
-
-                    // Logic matches previous implementation but adapted for circle points
-                    if (index === 0) isCompleted = true; // Always submitted
-                    else if (index === 1) { // Waiting
-                        if (s === 'รออนุมัติ') isActive = true;
-                        else if (['อนุมัติแล้ว', 'ออกฝึกงาน', 'ฝึกงานเสร็จแล้ว'].includes(s)) isCompleted = true;
-                        else if (s === 'ไม่อนุมัติ') isRejected = true;
-                    } 
-                    else if (index === 2) { // Approved
-                        if (s === 'อนุมัติแล้ว') isActive = true;
-                        else if (['ออกฝึกงาน', 'ฝึกงานเสร็จแล้ว'].includes(s)) isCompleted = true;
-                    }
-                    else if (index === 3) { // Start
-                        if (s === 'ออกฝึกงาน') isActive = true;
-                        else if (['ฝึกงานเสร็จแล้ว'].includes(s)) isCompleted = true;
-                    }
-                    else if (index === 4) { // Finish
-                        if (s === 'ฝึกงานเสร็จแล้ว') isCompleted = true;
-                    }
                     
+                    const currentIdx = getStepIndex(s);
+                    
+                    if (index < currentIdx) {
+                        isCompleted = true;
+                    } else if (index === currentIdx) {
+                        isActive = true;
+                        if (s.includes('ไม่อนุมัติ') || s.includes('ปฏิเสธ')) {
+                            isActive = false;
+                            isRejected = true;
+                        }
+                    }
+
                     return (
                         <div 
                             key={index} 
@@ -277,9 +286,17 @@ const DashboardPage = () => {
         <div className="content-section">
           <div className="section-header">
             <h2>คำร้องล่าสุด</h2>
-            <Link to="/dashboard/new-request" className="btn-add">
-              + ยื่นคำร้องใหม่
-            </Link>
+            {!hasActiveRequest && (
+              <Link to="/dashboard/new-request" className="btn-add">
+                + ยื่นคำร้องใหม่
+              </Link>
+            )}
+            {/* If active request exists, hide the button or show disabled state */}
+            {hasActiveRequest && (
+                 <span className="info-text text-muted" style={{ fontSize: '0.9rem', color: '#e53e3e' }}>
+                    *คุณมีคำร้องที่กำลังดำเนินการ (ต้องรอผลการอนุมัติ/ปฏิเสธก่อนยื่นใหม่)
+                 </span>
+            )}
           </div>
 
           <div className="requests-list">

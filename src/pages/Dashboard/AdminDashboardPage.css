@@ -466,5 +466,64 @@ tbody tr:hover {
   .admin-main {
     padding-top: 4rem;
   }
+
+  /* Responsive Table - Card View */
+  .table-responsive {
+    overflow-x: visible;
+  }
+
+  .data-table {
+    display: block;
+  }
+
+  .data-table thead {
+    display: none;
+  }
+
+  .data-table tbody {
+    display: block;
+  }
+
+  .data-table tr {
+    display: block;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    padding: 1.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  }
+
+  .data-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #edf2f7;
+    text-align: right;
+  }
+
+  .data-table td:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .data-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #718096;
+    text-align: left;
+    margin-right: 1.5rem;
+  }
+
+  /* Adjust user info layout in mobile card */
+  .user-info {
+    flex-direction: row-reverse;
+    text-align: right;
+  }
+  
+  .user-details {
+    align-items: flex-end;
+  }
 }
 
