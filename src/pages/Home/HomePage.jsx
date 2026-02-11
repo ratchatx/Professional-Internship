@@ -29,6 +29,19 @@ const HomePage = () => {
     setShowMenu(false);
   };
 
+  const getDashboardPath = (role) => {
+    if (role === 'admin') return '/admin-dashboard';
+    if (role === 'advisor') return '/advisor-dashboard';
+    if (role === 'company') return '/company-dashboard';
+    return '/dashboard';
+  };
+
+  const getProfilePath = (role) => {
+    if (role === 'admin') return '/admin-dashboard/profile';
+    if (role === 'student') return '/dashboard/profile';
+    return null;
+  };
+
   // ปิดเมนู dropdown เมื่อคลิกข้างนอก
   useEffect(() => {
     if (!showMenu) return;
@@ -55,7 +68,7 @@ const HomePage = () => {
             </>
           ) : (
             <>
-              <Link to="/dashboard" className="nav-menu-link">Dashboard</Link>
+              <Link to={getDashboardPath(user.role)} className="nav-menu-link">Dashboard</Link>
               <div className="profile-menu-wrapper">
                 <button className="profile-avatar-btn" onClick={() => setShowMenu(v => !v)}>
                   <span className="profile-avatar-icon">
@@ -64,7 +77,15 @@ const HomePage = () => {
                 </button>
                 {showMenu && (
                   <div className="profile-dropdown-menu">
-                    <Link to="/dashboard/profile" className="dropdown-item" onClick={()=>setShowMenu(false)}>โปรไฟล์</Link>
+                    {getProfilePath(user.role) && (
+                      <Link
+                        to={getProfilePath(user.role)}
+                        className="dropdown-item"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        โปรไฟล์
+                      </Link>
+                    )}
                     <button className="dropdown-item" onClick={handleLogout}>ออกจากระบบ</button>
                   </div>
                 )}
@@ -127,21 +148,16 @@ const HomePage = () => {
         <div className="steps-grid">
           <div className="step-card">
             <div className="step-number">1</div>
-            <h3>ลงทะเบียน</h3>
-            <p>สร้างบัญชีนักศึกษาในระบบ</p>
-          </div>
-          <div className="step-card">
-            <div className="step-number">2</div>
             <h3>ยื่นคำร้อง</h3>
             <p>กรอกแบบฟอร์มคำร้องขอฝึกงาน</p>
           </div>
           <div className="step-card">
-            <div className="step-number">3</div>
+            <div className="step-number">2</div>
             <h3>รอการอนุมัติ</h3>
             <p>รอผู้ดูแลระบบตรวจสอบ</p>
           </div>
           <div className="step-card">
-            <div className="step-number">4</div>
+            <div className="step-number">3</div>
             <h3>เริ่มฝึกงาน</h3>
             <p>เริ่มฝึกงานตามที่ได้รับอนุมัติ</p>
           </div>

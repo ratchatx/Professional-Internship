@@ -4,6 +4,20 @@
   box-sizing: border-box;
 }
 
+:root {
+  --bg: #ffffff;
+  --text: #111111;
+  --muted: #333333;
+  --surface: #ffffff;
+  --surface-muted: #f3f4f6;
+  --border: #e5e7eb;
+  --primary: #111111;
+  --primary-contrast: #ffffff;
+  --danger: #b91c1c;
+  --success: #166534;
+  --warning: #a16207;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -12,6 +26,56 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  overflow-x: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+a {
+  color: var(--text);
+}
+
+button,
+.btn-submit,
+.btn-primary,
+.btn-add,
+.btn-login,
+.btn-primary-small,
+.btn-save-profile,
+.btn-approve {
+  background: var(--primary);
+  color: var(--primary-contrast);
+  border-color: var(--primary);
+}
+
+.btn-cancel,
+.btn-secondary,
+.btn-signup,
+.btn-cancel-profile,
+.logout-btn {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--text);
+}
+
+.btn-reject,
+.btn-delete {
+  background: var(--danger);
+  color: #ffffff;
+  border-color: var(--danger);
+}
+
+.footer {
+  background: #000000;
+  color: #ffffff;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
 }
 
 code {

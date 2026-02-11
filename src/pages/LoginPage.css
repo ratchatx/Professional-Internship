@@ -1,5 +1,6 @@
 .login-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background-color: white;
   display: flex;
   flex-direction: column;
@@ -7,7 +8,7 @@
 }
 
 .top-header {
-  background-color: #4a0050; /* Deep purple */
+  background-color: #000000;
   padding: 10px 20px;
   width: 100%;
 }
@@ -29,6 +30,7 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
+  min-width: 0;
 }
 
 .login-card-redesigned {
@@ -42,6 +44,7 @@
   overflow: hidden;
   min-height: 500px;
   padding-bottom: 20px; /* Space for bottom bar if inside, but design looks like it overlaps or is at bottom */
+  min-width: 0;
 }
 
 /* The purple bar at the bottom of the card */
@@ -52,7 +55,7 @@
   left: 0;
   right: 0;
   height: 15px;
-  background-color: #4a0050;
+  background-color: #000000;
 }
 
 .left-panel {
@@ -67,13 +70,13 @@
 
 .left-panel h2 {
   font-size: 1.5rem;
-  color: #333;
+  color: #111111;
   margin-bottom: 5px;
   font-weight: normal;
 }
 
 .left-panel p {
-  color: #666;
+  color: #333333;
   font-size: 1rem;
   margin-bottom: 40px;
 }
@@ -106,14 +109,15 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  border-left: 1px solid #ccc; /* Implementing divider here instead of div to match height better */
+  border-left: 1px solid #e5e7eb;
+  min-width: 0;
 }
 
 .right-panel h3 {
   font-size: 1.2rem;
   font-weight: bold;
   margin-bottom: 40px;
-  color: #000;
+  color: #111111;
 }
 
 .redesigned-form {
@@ -126,14 +130,14 @@
   width: 100%;
   padding: 10px 0;
   border: none;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid #e5e7eb;
   font-size: 1rem;
   outline: none;
   transition: border-color 0.3s;
 }
 
 .input-group input:focus {
-  border-bottom-color: #4a0050;
+  border-bottom-color: #111111;
 }
 
 .input-group input::placeholder {
@@ -145,7 +149,7 @@
   justify-content: space-between;
   align-items: flex-start;
   font-size: 0.85rem;
-  color: #555;
+  color: #333333;
   margin-bottom: 20px;
 }
 
@@ -169,8 +173,8 @@
 
 .btn-login {
   flex: 1;
-  background-color: #4a0050;
-  color: white;
+  background-color: #111111;
+  color: #ffffff;
   border: none;
   padding: 10px;
   font-size: 0.9rem;
@@ -181,9 +185,9 @@
 
 .btn-signup {
   flex: 1;
-  background-color: white;
-  color: #4a0050;
-  border: 1px solid #4a0050;
+  background-color: #ffffff;
+  color: #111111;
+  border: 1px solid #111111;
   padding: 10px;
   font-size: 0.9rem;
   cursor: pointer;
@@ -214,11 +218,38 @@
   .vertical-divider {
     display: none;
   }
+
+  .left-panel,
+  .right-panel {
+    padding: 24px;
+  }
+
+  .right-panel h3 {
+    margin-bottom: 24px;
+  }
+
+  .button-group {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-wrapper {
+    padding: 16px;
+  }
+
+  .login-card-redesigned {
+    min-height: auto;
+  }
+
+  .left-panel h2 {
+    font-size: 1.25rem;
+  }
 }
 
 .login-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: #111111;
+  color: #ffffff;
   border: none;
   padding: 1rem;
   border-radius: 8px;
@@ -230,7 +261,7 @@
 
 .login-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
 .login-btn:active {
@@ -243,22 +274,23 @@
 }
 
 .login-footer p {
-  color: #666;
+  color: #333333;
   margin-bottom: 1rem;
 }
 
 .register-link {
-  color: #667eea;
+  color: #111111;
   text-decoration: none;
   font-weight: 600;
 }
 
 .register-link:hover {
+  color: #000000;
   text-decoration: underline;
 }
 
 .back-link {
-  color: #999;
+  color: #666666;
   text-decoration: none;
   font-size: 0.875rem;
   display: inline-block;
@@ -266,7 +298,7 @@
 }
 
 .back-link:hover {
-  color: #667eea;
+  color: #111111;
 }
 
 @media (max-width: 480px) {

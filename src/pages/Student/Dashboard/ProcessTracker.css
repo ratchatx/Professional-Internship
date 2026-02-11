@@ -1,0 +1,251 @@
+/* Reusing container styles */
+.status-tracker-container {
+  --tracker-scale: 1;
+  --tracker-size: 320px;
+  --tracker-pad: 2rem;
+
+  background: #ffffff;
+  border-radius: 12px;
+  padding: var(--tracker-pad);
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  text-align: center;
+  overflow: visible;
+}
+
+.status-tracker-container h2 {
+  text-align: left;
+  margin-bottom: 2rem;
+  font-size: 1.25rem;
+  color: #111111;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 1rem;
+}
+
+/* Circular Tracker */
+.circular-tracker-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  padding: calc(12px * var(--tracker-scale)) 0;
+  min-height: calc(var(--tracker-size) * var(--tracker-scale) + 90px);
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.circular-tracker {
+  position: relative;
+  width: var(--tracker-size);
+  height: var(--tracker-size);
+  transform: scale(var(--tracker-scale));
+  transform-origin: center;
+}
+
+.progress-ring__circle {
+  transition: stroke-dashoffset 0.8s ease-in-out;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  stroke-linecap: round;
+}
+
+/* Center Content */
+.tracker-center-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  width: calc(180px * var(--tracker-scale));
+}
+
+.status-icon-large {
+  font-size: calc(3rem * var(--tracker-scale));
+  margin-bottom: 0.5rem;
+}
+
+.tracker-center-content h3 {
+  font-size: clamp(0.95rem, calc(1.25rem * var(--tracker-scale)), 1.35rem);
+  color: #111111;
+  margin: 0 0 0.5rem;
+}
+
+.tracker-center-content p {
+  font-size: clamp(0.78rem, calc(0.9rem * var(--tracker-scale)), 1rem);
+  color: #333333;
+  margin: 0;
+  max-width: calc(160px * var(--tracker-scale));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Steps around circle */
+.circular-step-item {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+}
+
+.circular-step-icon {
+  width: calc(40px * var(--tracker-scale));
+  height: calc(40px * var(--tracker-scale));
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: calc(1.2rem * var(--tracker-scale));
+  color: #9ca3af;
+  transition: all 0.3s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.circular-step-label {
+  position: absolute;
+  top: calc(45px * var(--tracker-scale));
+  font-size: clamp(0.6rem, calc(0.8rem * var(--tracker-scale)), 0.85rem);
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  max-width: calc(90px * var(--tracker-scale));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Active State */
+.circular-step-item.active .circular-step-icon {
+  border-color: #111111;
+  color: #111111;
+  background: #f3f4f6;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.15);
+  transform: scale(1.2);
+}
+
+.circular-step-item.active .circular-step-label {
+  color: #111111;
+}
+
+/* Completed State */
+.circular-step-item.completed .circular-step-icon {
+  border-color: #43e97b;
+  background: #43e97b;
+  color: white;
+}
+
+.circular-step-item.completed .circular-step-label {
+  color: #2f855a;
+}
+
+/* Rejected State */
+.circular-step-item.rejected .circular-step-icon {
+  border-color: #fa709a;
+  background: #fa709a;
+  color: white;
+}
+
+.circular-step-item.rejected .circular-step-label {
+  color: #c53030;
+}
+
+/* No Request */
+.no-request-tracker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.no-request-tracker .step-circle.start {
+  border-color: #111111;
+  background: #f3f4f6;
+  width: 80px;
+  height: 80px;
+  font-size: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.btn-primary-small {
+  margin-top: 1rem;
+  display: inline-block;
+  padding: 0.5rem 1.5rem;
+  background: #111111;
+  color: #ffffff;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.btn-primary-small:hover {
+  background: #000000;
+  transform: translateY(-1px);
+}
+
+.status-tracker-container,
+.circular-tracker-wrapper {
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .status-tracker-container {
+    --tracker-scale: 0.9;
+    --tracker-pad: 1.25rem;
+  }
+
+  .tracker-center-content h3 {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .circular-step-label {
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .status-tracker-container {
+    --tracker-scale: 0.82;
+    --tracker-pad: 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .status-tracker-container {
+    --tracker-scale: 0.85;
+    --tracker-pad: 1rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .status-tracker-container {
+    --tracker-scale: 0.78;
+    --tracker-pad: 0.85rem;
+  }
+}
+
+@media (max-width: 320px) {
+  .status-tracker-container {
+    --tracker-scale: 0.8;
+    --tracker-pad: 0.6rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .status-tracker-container {
+    --tracker-scale: 1.1;
+  }
+}

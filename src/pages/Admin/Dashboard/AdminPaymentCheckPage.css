@@ -1,0 +1,17 @@
+.filter-group {
+	flex-wrap: wrap;
+}
+
+.filter-group label {
+	white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+	.filter-group {
+		gap: 8px;
+	}
+
+	.filter-group select {
+		width: 100%;
+	}
+}
