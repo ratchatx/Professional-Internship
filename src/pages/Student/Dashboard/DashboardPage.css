@@ -3,6 +3,7 @@
   min-height: 100vh;
   min-height: 100dvh;
   background: #ffffff;
+  padding-top: 60px;
 }
 
 /* Sidebar */
@@ -12,9 +13,11 @@
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  position: sticky;
-  top: 0;
+  height: calc(100dvh - 60px);
+  position: fixed;
+  top: 60px;
+  left: 0;
+  z-index: 1050;
 }
 
 .sidebar-header {
@@ -84,6 +87,7 @@
 /* Main Content */
 .dashboard-main {
   flex: 1;
+  margin-left: 260px;
   padding: 2rem;
   overflow-y: visible;
   min-width: 0;
@@ -213,6 +217,13 @@
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
+/* Charts removed from Student Dashboard; styles kept for potential reuse */
+
+.chart-canvas {
+  width: 100%;
+  height: 270px;
+}
+
 /* Requests List */
 .requests-list {
   display: flex;
@@ -222,15 +233,17 @@
 
 .request-card {
   padding: 1.5rem;
-  background: #f3f4f6;
+  background: linear-gradient(135deg, #fff1f2 0%, #ffedd5 40%, #fef3c7 100%);
   border-radius: 12px;
-  border-left: 4px solid #111111;
+  border: none;
+  border-left: none;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.06);
   transition: all 0.3s;
 }
 
 .request-card:hover {
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #ffe4e6 0%, #ffedd5 45%, #fde68a 100%);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
   transform: translateX(4px);
 }
 
@@ -261,6 +274,7 @@
   font-size: 0.875rem;
   font-weight: 600;
   white-space: nowrap;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 
 .request-footer {
@@ -269,7 +283,7 @@
   align-items: center;
   gap: 1rem;
   padding-top: 0.75rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid rgba(244, 114, 182, 0.35);
 }
 
 .request-date {
@@ -294,7 +308,7 @@
 
 .view-link {
   font-weight: 600;
-  color: #111111;
+  color: #be185d;
   text-decoration: none;
   white-space: nowrap;
   transition: color 0.2s;
@@ -302,7 +316,7 @@
 }
 
 .view-link:hover {
-  color: #000000;
+  color: #9d174d;
   text-decoration: underline;
 }
 
@@ -372,18 +386,19 @@
 /* Footer */
 .dashboard-footer {
   margin-top: 2.5rem;
-  background: #000000;
-  border-radius: 12px;
-  padding: 1.25rem 1.5rem;
-  color: #ffffff;
+  background: transparent;
+  border-radius: 8px;
+  padding: 0.75rem 0;
+  color: rgba(17, 24, 39, 0.45);
   text-align: center;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
 }
 
 .dashboard-footer .footer-inner {
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 400;
   letter-spacing: 0.2px;
+  opacity: 0.85;
 }
 
 /* Responsive */
@@ -406,6 +421,10 @@
 
   .request-card {
     padding: 1.25rem;
+  }
+
+  .chart-section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -466,6 +485,10 @@
     grid-template-columns: 1fr;
   }
 
+  .chart-section {
+    grid-template-columns: 1fr;
+  }
+
   .actions-grid {
     grid-template-columns: 1fr;
   }
@@ -483,20 +506,50 @@
   }
 }
 /* Mobile Menu Button - Default Hidden */
+.mobile-top-navbar {
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 12px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 1080;
+}
+
+.home-link {
+  display: none;
+}
+
 .mobile-menu-btn {
   display: none;
-  position: fixed;
-  top: 15px;
-  right: 15px;
-  z-index: 1100;
+  position: static;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 8px 12px;
+  width: 40px;
+  height: 40px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   font-size: 1.5rem;
   color: #111111;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.mobile-top-logo {
+  width: 120px;
+  height: 38px;
+  background-image: url('../../../assets/LASC-SSKRU-1.png');
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: contain;
+  flex: 0 0 auto;
 }
 
 .sidebar-overlay {
@@ -514,16 +567,18 @@
   display: block;
 }
 
-@media (max-width: 1199px) {
+@media (max-width: 767px), (max-width: 1024px) and (orientation: portrait) {
   .mobile-menu-btn {
-    display: block;
+    display: flex;
+    margin-left: auto;
+    z-index: 1090;
   }
 
   .sidebar {
     position: fixed;
-    top: 0;
+    top: 60px;
     left: -280px;
-    height: 100vh;
+    height: calc(100vh - 60px);
     width: 260px !important;
     z-index: 1050;
     transition: left 0.3s ease;
@@ -559,7 +614,8 @@
   }
 
   .dashboard-main {
-    padding-top: 4rem;
+    margin-left: 0;
+    padding-top: 5rem;
   }
 }
 

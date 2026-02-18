@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import '../Admin/Dashboard/AdminDashboardPage.css'; // Reuse styles
 import '../Admin/Dashboard/StudentListPage.css';
 
@@ -36,8 +37,38 @@ const AdvisorStudentListPage = () => {
 
     const handleLogout = () => {
         localStorage.removeItem('user');
-        navigate('/login');
+        navigate('/');
     };
+
+    // Sorting for the table
+    const [sortBy, setSortBy] = useState(null);
+    const [sortDir, setSortDir] = useState('asc');
+
+    const toggleSort = (key) => {
+        if (sortBy === key) {
+            setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortBy(key);
+            setSortDir('asc');
+        }
+    };
+
+    const sortedRequests = [...myRequests].sort((a, b) => {
+        if (!sortBy) return 0;
+        const va = a[sortBy] ?? '';
+        const vb = b[sortBy] ?? '';
+        if (sortBy === 'submittedDate') {
+            const da = new Date(va).getTime() || 0;
+            const db = new Date(vb).getTime() || 0;
+            return (da - db) * (sortDir === 'asc' ? 1 : -1);
+        }
+        if (sortBy === 'studentId') {
+            const na = parseInt(String(va).replace(/[^0-9]/g, ''), 10) || 0;
+            const nb = parseInt(String(vb).replace(/[^0-9]/g, ''), 10) || 0;
+            return (na - nb) * (sortDir === 'asc' ? 1 : -1);
+        }
+        return String(va).localeCompare(String(vb), 'th-TH', { numeric: true }) * (sortDir === 'asc' ? 1 : -1);
+    });
 
     const getStatusBadge = (status) => {
         const statusStyles = {
@@ -59,24 +90,27 @@ const AdvisorStudentListPage = () => {
 
     return (
         <div className="admin-dashboard-container">
-            <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+            <div className="mobile-top-navbar">
+                <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
+                <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+            </div>
             <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
             <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
                 <div className="sidebar-header">
-                        <h2>👨‍🏫 อาจารย์ที่ปรึกษา</h2>
+                        <h2> อาจารย์ที่ปรึกษา</h2>
                 </div>
                 <nav className="sidebar-nav">
                     <Link to="/advisor-dashboard" className="nav-item">
-                        <span className="nav-icon">🏠</span>
                         <span>หน้าหลัก</span>
                     </Link>
                     <Link to="/advisor-dashboard/students" className="nav-item active">
-                        <span className="nav-icon">🎓</span>
                         <span>รายชื่อนักศึกษาฝึกงาน</span>
                     </Link>
                     <Link to="/advisor-dashboard/supervision" className="nav-item">
-                        <span className="nav-icon">🚗</span>
                         <span>ตารางนิเทศงาน</span>
+                    </Link>
+                    <Link to="/advisor-dashboard/progress" className="nav-item">
+                        <span>เช็ค Progress</span>
                     </Link>
                 </nav>
                 <div className="sidebar-footer">
@@ -94,50 +128,50 @@ const AdvisorStudentListPage = () => {
                     </div>
                 </header>
 
-                <div className="content-section">
-                    <div className="section-header">
+                <Paper className="content-section" elevation={0} sx={{ width: '100%', background: '#ffffff', color: '#0f172a', boxShadow: 'none', borderRadius: 2 }}>
+                    <div className="section-header" style={{ background: 'transparent' }}>
                         <h2>รายการคำร้องทั้งหมด ({myRequests.length})</h2>
                     </div>
 
-                    <div className="table-responsive">
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    <th>รหัสนักศึกษา</th>
-                                    <th>ชื่อ-นามสกุล</th>
-                                    <th>สถานประกอบการ</th>
-                                    <th>วันที่ส่ง</th>
-                                    <th>สถานะ</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {myRequests.length > 0 ? (
-                                    myRequests.map((req, index) => (
-                                        <tr key={req.id || index}>
-                                            <td data-label="รหัสนักศึกษา">{req.studentId}</td>
-                                            <td data-label="ชื่อ-นามสกุล">{req.studentName}</td>
-                                            <td data-label="สถานประกอบการ">{req.company}</td>
-                                            <td data-label="วันที่ส่ง">{new Date(req.submittedDate).toLocaleDateString('th-TH')}</td>
-                                            <td data-label="สถานะ">{getStatusBadge(req.status)}</td>
-                                            <td data-label="การจัดการ">
+                    <TableContainer component={Box} className="table-responsive" sx={{ px: 2, pb: 2, overflowX: 'auto' }}>
+                        <Table size="small" className="data-table" stickyHeader>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell className="sortable" onClick={() => toggleSort('studentId')}>รหัสนักศึกษา {sortBy === 'studentId' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</TableCell>
+                                    <TableCell className="sortable" onClick={() => toggleSort('studentName')}>ชื่อ-นามสกุล {sortBy === 'studentName' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</TableCell>
+                                    <TableCell className="sortable" onClick={() => toggleSort('company')}>สถานประกอบการ {sortBy === 'company' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</TableCell>
+                                    <TableCell className="sortable" onClick={() => toggleSort('submittedDate')}>วันที่ส่ง {sortBy === 'submittedDate' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</TableCell>
+                                    <TableCell className="sortable" onClick={() => toggleSort('status')}>สถานะ {sortBy === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</TableCell>
+                                    <TableCell></TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {sortedRequests.length > 0 ? (
+                                    sortedRequests.map((req, index) => (
+                                        <TableRow key={req.id || index} hover>
+                                            <TableCell>{req.studentId}</TableCell>
+                                            <TableCell>{req.studentName}</TableCell>
+                                            <TableCell>{req.company}</TableCell>
+                                            <TableCell>{new Date(req.submittedDate).toLocaleDateString('th-TH')}</TableCell>
+                                            <TableCell>{getStatusBadge(req.status)}</TableCell>
+                                            <TableCell>
                                                 <Link to={`/dashboard/request/${req.id}`} className="view-btn">
                                                     ตรวจสอบ
                                                 </Link>
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     ))
                                 ) : (
-                                    <tr>
-                                        <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
+                                    <TableRow>
+                                        <TableCell colSpan={6} align="center" sx={{ py: 2.5 }}>
                                             ไม่พบคำร้องจากนักศึกษาในสาขานี้
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Paper>
             </main>
         </div>
     );

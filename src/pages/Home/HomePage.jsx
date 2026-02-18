@@ -1,12 +1,85 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  AppBar,
+  Avatar,
+  Box,
+  Button,
+  IconButton,
+  Menu,
+  MenuItem,
+  Toolbar,
+  Typography,
+} from '@mui/material';
 import asyncStorage from '../../utils/asyncStorage';
 import './HomePage.css';
 import logo from '../../assets/LASC-SSKRU-1.png';
+import banner from '../../assets/Banner.jpg';
 
 const HomePage = () => {
   const [user, setUser] = useState(null);
-  const [showMenu, setShowMenu] = useState(false);
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [companyCatalog, setCompanyCatalog] = useState([]);
+
+  const fallbackCompanies = [
+    { name: 'บริษัท ABC', businessType: 'เทคโนโลยีสารสนเทศ', address: 'สงขลา', source: 'รายการแนะนำ', imageUrl: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=800&auto=format&fit=crop&crop=top' },
+    { name: 'บริษัท NEX Digital', businessType: 'ซอฟต์แวร์และดิจิทัลโซลูชัน', address: 'หาดใหญ่', source: 'รายการแนะนำ', imageUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=800&auto=format&fit=crop&crop=top' },
+    { name: 'บริษัท Green Agro Tech', businessType: 'เทคโนโลยีการเกษตร', address: 'พัทลุง', source: 'รายการแนะนำ', imageUrl: 'https://images.unsplash.com/photo-1504639725590-34d0984388bd?q=80&w=800&auto=format&fit=crop&crop=top' },
+    { name: 'บริษัท HealthPlus Care', businessType: 'สุขภาพและสาธารณสุข', address: 'สงขลา', source: 'รายการแนะนำ', imageUrl: 'https://picsum.photos/id/1011/800/600' },
+    { name: 'บริษัท BuildWise Engineering', businessType: 'วิศวกรรมและโครงสร้าง', address: 'นครศรีธรรมราช', source: 'รายการแนะนำ', imageUrl: 'https://images.unsplash.com/photo-1509395176047-4a66953fd231?q=80&w=800&auto=format&fit=crop&crop=top' },
+    { name: 'บริษัท Smart Logistics Hub', businessType: 'โลจิสติกส์และซัพพลายเชน', address: 'สุราษฎร์ธานี', source: 'รายการแนะนำ', imageUrl: 'https://picsum.photos/id/1037/800/600' },
+  ];
+
+  const normalizeCompanyName = (value) =>
+    String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+
+  const buildCompanyCatalog = () => {
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const requests = JSON.parse(localStorage.getItem('requests') || '[]');
+    const map = new Map();
+
+    users
+      .filter((item) => item.role === 'company')
+      .forEach((company) => {
+        const companyName = company.companyName || company.name || company.full_name || company.username || '';
+        const key = normalizeCompanyName(companyName);
+        if (!key) return;
+
+        map.set(key, {
+          name: companyName,
+          businessType: company.businessType || 'ไม่ระบุประเภทธุรกิจ',
+          address: company.address || 'ไม่ระบุที่อยู่',
+          source: 'จากบัญชีบริษัท'
+        });
+      });
+
+    requests.forEach((request) => {
+      const companyName = request.companyName || request.company || request.details?.companyName || '';
+      const key = normalizeCompanyName(companyName);
+      if (!key) return;
+
+      const existing = map.get(key);
+      if (existing) {
+        if (existing.businessType === 'ไม่ระบุประเภทธุรกิจ' && request.position) {
+          existing.businessType = `ตำแหน่งยอดฮิต: ${request.position}`;
+        }
+        return;
+      }
+
+      map.set(key, {
+        name: companyName,
+        businessType: request.position ? `ตำแหน่งยอดฮิต: ${request.position}` : 'ไม่ระบุประเภทธุรกิจ',
+        address: request.details?.address || request.address || 'ไม่ระบุที่อยู่',
+        source: 'จากคำร้องรุ่นพี่'
+      });
+    });
+
+    const result = Array.from(map.values());
+    setCompanyCatalog(result.length > 0 ? result.slice(0, 12) : fallbackCompanies);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -23,10 +96,37 @@ const HomePage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    buildCompanyCatalog();
+
+    const reloadCatalog = () => buildCompanyCatalog();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') reloadCatalog();
+    };
+
+    window.addEventListener('focus', reloadCatalog);
+    window.addEventListener('storage', reloadCatalog);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('focus', reloadCatalog);
+      window.removeEventListener('storage', reloadCatalog);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
+
   const handleLogout = async () => {
     await asyncStorage.removeItem('user');
     setUser(null);
-    setShowMenu(false);
+    setMenuAnchorEl(null);
+  };
+
+  const handleOpenMenu = (event) => {
+    setMenuAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseMenu = () => {
+    setMenuAnchorEl(null);
   };
 
   const getDashboardPath = (role) => {
@@ -38,69 +138,112 @@ const HomePage = () => {
 
   const getProfilePath = (role) => {
     if (role === 'admin') return '/admin-dashboard/profile';
+    if (role === 'company') return '/company-dashboard/profile';
     if (role === 'student') return '/dashboard/profile';
     return null;
   };
 
-  // ปิดเมนู dropdown เมื่อคลิกข้างนอก
-  useEffect(() => {
-    if (!showMenu) return;
-    const handle = (e) => {
-      if (!e.target.closest('.profile-menu-wrapper')) setShowMenu(false);
-    };
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, [showMenu]);
-
   return (
     <div className="home-container">
-      <nav className="navbar lasc-navbar">
-        <div className="nav-brand lasc-logo">
-          <img src={logo} alt="LASC Logo" height={54} />
-        </div>
-        <div className="nav-menu">
-          {/* Menu moved to right */}
-        </div>
-        <div className="nav-actions lasc-nav-actions">
-          {!user ? (
-            <>
-              <Link to="/login" className="nav-link">เข้าสู่ระบบ</Link>
-            </>
-          ) : (
-            <>
-              <Link to={getDashboardPath(user.role)} className="nav-menu-link">Dashboard</Link>
-              <div className="profile-menu-wrapper">
-                <button className="profile-avatar-btn" onClick={() => setShowMenu(v => !v)}>
-                  <span className="profile-avatar-icon">
-                    <svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="12" r="8" fill="#fff"/><ellipse cx="16" cy="26" rx="10" ry="6" fill="#fff"/></svg>
-                  </span>
-                </button>
-                {showMenu && (
-                  <div className="profile-dropdown-menu">
-                    {getProfilePath(user.role) && (
-                      <Link
-                        to={getProfilePath(user.role)}
-                        className="dropdown-item"
-                        onClick={() => setShowMenu(false)}
-                      >
-                        โปรไฟล์
-                      </Link>
-                    )}
-                    <button className="dropdown-item" onClick={handleLogout}>ออกจากระบบ</button>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </nav>
+      <AppBar position="static" color="transparent" elevation={0} sx={{ borderBottom: '1px solid #e5e7eb', bgcolor: '#ffffff' }}>
+        <Toolbar
+          sx={{
+            minHeight: 90,
+            px: { xs: 2, md: 4 },
+            display: 'flex',
+            flexWrap: 'nowrap',
+            justifyContent: 'space-between',
+            gap: 2,
+            overflow: 'hidden',
+          }}
+        >
+          <Box sx={{ minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box
+                component="img"
+                src={logo}
+                alt="LASC Logo"
+                sx={{
+                  height: { xs: 36, sm: 44, md: 54 },
+                  width: 'auto',
+                  maxWidth: '100%',
+                  display: 'block',
+                  objectFit: 'contain',
+                }}
+              />
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                <Typography sx={{ fontWeight: 800, fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' }, letterSpacing: '0.2px' }}>
+                  Professional Internship
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
 
-      <main className="hero-section">
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: { xs: 0.75, sm: 1.25 },
+              flex: '0 0 auto',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {!user ? (
+              <Button component={Link} to="/login" variant="text" sx={{ color: '#111111', fontWeight: 600, minWidth: 'auto', px: 1 }}>
+                เข้าสู่ระบบ
+              </Button>
+            ) : (
+              <>
+                <Button
+                  component={Link}
+                  to={getDashboardPath(user.role)}
+                  variant="text"
+                  sx={{
+                    color: '#111111',
+                    fontWeight: 700,
+                    minWidth: 'auto',
+                    px: { xs: 0.5, sm: 1 },
+                  }}
+                >
+                  Dashboard
+                </Button>
+
+                <IconButton onClick={handleOpenMenu} size="small" sx={{ p: 0.25 }}>
+                  <Avatar sx={{ width: 38, height: 38, bgcolor: '#111111', fontSize: '1rem', fontWeight: 700 }}>
+                    {(user?.name || user?.full_name || 'U').charAt(0).toUpperCase()}
+                  </Avatar>
+                </IconButton>
+
+                <Menu
+                  anchorEl={menuAnchorEl}
+                  open={Boolean(menuAnchorEl)}
+                  onClose={handleCloseMenu}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                >
+                  {getProfilePath(user.role) && (
+                    <MenuItem
+                      component={Link}
+                      to={getProfilePath(user.role)}
+                      onClick={handleCloseMenu}
+                    >
+                      โปรไฟล์
+                    </MenuItem>
+                  )}
+                  <MenuItem className="logout-btn" onClick={handleLogout}>ออกจากระบบ</MenuItem>
+                </Menu>
+              </>
+            )}
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      <main className="hero-section" style={{
+        backgroundImage: `url(${banner})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center top',
+      }}>
         <div className="hero-content">
-          <h1 className="hero-title">ยินดีต้อนรับสู่ระบบคำร้องฝึกงาน</h1>
-          <p className="hero-description">
-            ระบบจัดการคำร้องขอฝึกงานวิชาชีพสำหรับนักศึกษา อย่างมีประสิทธิภาพและสะดวกรวดเร็ว
-          </p>
           <div className="hero-buttons">
             {/* Buttons removed */ }
           </div>
@@ -108,38 +251,24 @@ const HomePage = () => {
       </main>
 
       <section className="features-section">
-        <h2 className="section-title">ฟีเจอร์หลัก</h2>
+        <h2 className="section-title">สถานประกอบการแนะนำ</h2>
         <div className="features-grid">
-          <div className="feature-card">
-            <div className="feature-icon">📝</div>
-            <h3>ยื่นคำร้องออนไลน์</h3>
-            <p>ยื่นคำร้องขอฝึกงานได้ง่ายๆ ผ่านระบบออนไลน์ตลอด 24 ชั่วโมง</p>
-          </div>
-          <div className="feature-card">
-            <div className="feature-icon">📊</div>
-            <h3>ติดตามสถานะ</h3>
-            <p>ตรวจสอบสถานะคำร้องของคุณได้แบบเรียลไทม์</p>
-          </div>
-          <div className="feature-card">
-            <div className="feature-icon">⚡</div>
-            <h3>อนุมัติรวดเร็ว</h3>
-            <p>ระบบการอนุมัติที่รวดเร็วและมีประสิทธิภาพ</p>
-          </div>
-          <div className="feature-card">
-            <div className="feature-icon">🔔</div>
-            <h3>แจ้งเตือนอัตโนมัติ</h3>
-            <p>รับการแจ้งเตือนเมื่อมีการอัปเดตสถานะคำร้อง</p>
-          </div>
-          <div className="feature-card">
-            <div className="feature-icon">📱</div>
-            <h3>ใช้งานง่าย</h3>
-            <p>อินเทอร์เฟซที่เรียบง่าย ใช้งานได้บนทุกอุปกรณ์</p>
-          </div>
-          <div className="feature-card">
-            <div className="feature-icon">🔒</div>
-            <h3>ปลอดภัย</h3>
-            <p>ข้อมูลของคุณได้รับการปกป้องด้วยมาตรฐานสูงสุด</p>
-          </div>
+          {companyCatalog.map((company) => (
+            <div className="feature-card" key={`${company.name}-${company.source}`}>
+              {company.imageUrl && (
+                <Box
+                  component="img"
+                  src={company.imageUrl}
+                  alt={company.name}
+                  sx={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 1, mb: 2 }}
+                />
+              )}
+              <h3>{company.name}</h3>
+              <p>{company.businessType}</p>
+              <p>พื้นที่: {company.address}</p>
+              <p className="catalog-source">{company.source}</p>
+            </div>
+          ))}
         </div>
       </section>
 

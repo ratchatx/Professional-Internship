@@ -1,12 +1,120 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    LinearProgress,
+    MenuItem,
+    Paper,
+    Snackbar,
+    Stack,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    TextField,
+    Typography,
+} from '@mui/material';
+import { STAT_EMOJI } from '../../utils/statEmojis';
+import { calculateInternshipProgressByCheckins } from '../../utils/internshipProgress';
 import '../Admin/Dashboard/AdminDashboardPage.css';
 
 const AdvisorSupervisionPage = () => {
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [supervisionList, setSupervisionList] = useState([]);
     const [advisorName, setAdvisorName] = useState('');
+    const [advisorDept, setAdvisorDept] = useState('');
+    const [supervisionRows, setSupervisionRows] = useState([]);
+    const [appointmentDialog, setAppointmentDialog] = useState({
+        open: false,
+        requestId: null,
+        date: '',
+        mode: 'Online',
+        note: ''
+    });
+    const [reportDialog, setReportDialog] = useState({
+        open: false,
+        requestId: null,
+        progress: '',
+        issues: '',
+        suggestions: '',
+        result: 'ผ่าน'
+    });
+    const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
+
+    const toDate = (value) => {
+        if (!value) return null;
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    const formatDate = (value) => {
+        const date = toDate(value);
+        return date ? date.toLocaleDateString('th-TH') : '-';
+    };
+
+    const isDateInCurrentWeek = (value) => {
+        const date = toDate(value);
+        if (!date) return false;
+
+        const today = new Date();
+        const day = today.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() + diffToMonday);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        return date >= startOfWeek && date <= endOfWeek;
+    };
+
+    const getInternshipProgress = (request) => {
+        const checkins = JSON.parse(localStorage.getItem('daily_checkins') || '[]');
+        return calculateInternshipProgressByCheckins({
+            request,
+            checkins,
+            studentIds: [request.studentId, request.student_code, request.username, request.email],
+            studentNames: [request.studentName, request.details?.student_info?.name]
+        });
+    };
+
+    const getSupervisionStatus = (request) => {
+        if (request.supervisionReport) return 'นิเทศแล้ว';
+
+        const hasAppointment = Boolean(request.supervisionAppointment?.date);
+        if (!hasAppointment) return 'ยังไม่กำหนดวัน';
+
+        const appointmentDate = toDate(request.supervisionAppointment.date);
+        if (appointmentDate && appointmentDate < new Date()) {
+            return 'รอส่งรายงาน';
+        }
+
+        return 'นัดแล้ว';
+    };
+
+    const loadSupervisionRows = (dept) => {
+        const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+        const activeStatuses = ['อนุมัติแล้ว', 'ออกฝึกงาน', 'ฝึกงานเสร็จแล้ว'];
+
+        const filtered = allRequests.filter((request) => {
+            const sameDept = dept ? (request.department || '') === dept : true;
+            return sameDept && activeStatuses.includes(request.status);
+        });
+
+        setSupervisionRows(filtered);
+    };
 
     useEffect(() => {
         const userStr = localStorage.getItem('user');
@@ -14,66 +122,173 @@ const AdvisorSupervisionPage = () => {
             navigate('/login');
             return;
         }
+
         const user = JSON.parse(userStr);
         if (user.role !== 'advisor') {
             navigate('/dashboard');
             return;
         }
-        setAdvisorName(user.name);
 
-        // Load requests
+        const dept = user.department || user.major || '';
+        setAdvisorName(user.name || user.full_name || 'อาจารย์ที่ปรึกษา');
+        setAdvisorDept(dept);
+        loadSupervisionRows(dept);
+    }, [navigate]);
+
+    const persistRequests = (updater) => {
         const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-        
-        // Filter for active internships (Approved or Started) related to this advisor's students
-        // For simplicity in this demo, we assume all 'active' internships are visible to the advisor
-        // We filter for status "ออกฝึกงาน" (Internship Started) as these are the ones needing supervision
-        const activeInternships = allRequests.filter(req => 
-            req.status === 'ออกฝึกงาน' || req.status === 'อนุมัติแล้ว'
+        const updated = updater(allRequests);
+        localStorage.setItem('requests', JSON.stringify(updated));
+        const refreshed = updated.filter((request) => {
+            const sameDept = advisorDept ? (request.department || '') === advisorDept : true;
+            return sameDept && ['อนุมัติแล้ว', 'ออกฝึกงาน', 'ฝึกงานเสร็จแล้ว'].includes(request.status);
+        });
+        setSupervisionRows(refreshed);
+    };
+
+    const openAppointmentDialog = (request) => {
+        setAppointmentDialog({
+            open: true,
+            requestId: request.id,
+            date: request.supervisionAppointment?.date || '',
+            mode: request.supervisionAppointment?.mode || 'Online',
+            note: request.supervisionAppointment?.note || ''
+        });
+    };
+
+    const closeAppointmentDialog = () => {
+        setAppointmentDialog({
+            open: false,
+            requestId: null,
+            date: '',
+            mode: 'Online',
+            note: ''
+        });
+    };
+
+    const saveAppointment = () => {
+        if (!appointmentDialog.date) {
+            setToast({ open: true, message: 'กรุณาเลือกวันที่นิเทศ', severity: 'warning' });
+            return;
+        }
+
+        persistRequests((allRequests) =>
+            allRequests.map((request) =>
+                request.id === appointmentDialog.requestId
+                    ? {
+                            ...request,
+                            supervisionAppointment: {
+                                date: appointmentDialog.date,
+                                mode: appointmentDialog.mode,
+                                note: appointmentDialog.note,
+                                updatedAt: new Date().toISOString()
+                            }
+                        }
+                    : request
+            )
         );
 
-        // Group by Company
-        const groupedByCompany = activeInternships.reduce((acc, curr) => {
-            const company = curr.company || curr.companyName || 'Unknown Company';
-            if (!acc[company]) {
-                acc[company] = {
-                    name: company,
-                    address: curr.details?.address || 'ไม่ระบุที่อยู่',
-                    students: []
-                };
-            }
-            acc[company].students.push(curr);
-            return acc;
-        }, {});
+        closeAppointmentDialog();
+        setToast({ open: true, message: 'บันทึกนัดนิเทศเรียบร้อย', severity: 'success' });
+    };
 
-        setSupervisionList(Object.values(groupedByCompany));
+    const openReportDialog = (request) => {
+        setReportDialog({
+            open: true,
+            requestId: request.id,
+            progress: String(request.supervisionReport?.progress ?? getInternshipProgress(request)),
+            issues: request.supervisionReport?.issues || '',
+            suggestions: request.supervisionReport?.suggestions || '',
+            result: request.supervisionReport?.result || 'ผ่าน'
+        });
+    };
 
-    }, [navigate]);
+    const closeReportDialog = () => {
+        setReportDialog({
+            open: false,
+            requestId: null,
+            progress: '',
+            issues: '',
+            suggestions: '',
+            result: 'ผ่าน'
+        });
+    };
+
+    const saveReport = () => {
+        const parsedProgress = Number(reportDialog.progress);
+        if (Number.isNaN(parsedProgress) || parsedProgress < 0 || parsedProgress > 100) {
+            setToast({ open: true, message: 'ความคืบหน้าต้องอยู่ระหว่าง 0-100', severity: 'warning' });
+            return;
+        }
+
+        if (!reportDialog.issues.trim() || !reportDialog.suggestions.trim()) {
+            setToast({ open: true, message: 'กรุณากรอกปัญหาและข้อเสนอแนะ', severity: 'warning' });
+            return;
+        }
+
+        persistRequests((allRequests) =>
+            allRequests.map((request) =>
+                request.id === reportDialog.requestId
+                    ? {
+                            ...request,
+                            supervisionReport: {
+                                progress: parsedProgress,
+                                issues: reportDialog.issues.trim(),
+                                suggestions: reportDialog.suggestions.trim(),
+                                result: reportDialog.result,
+                                updatedAt: new Date().toISOString()
+                            }
+                        }
+                    : request
+            )
+        );
+
+        closeReportDialog();
+        setToast({ open: true, message: 'บันทึกผลนิเทศเรียบร้อย', severity: 'success' });
+    };
 
     const handleLogout = () => {
         localStorage.removeItem('user');
-        navigate('/login');
+        navigate('/');
+    };
+
+    const summary = {
+        totalStudents: supervisionRows.length,
+        pendingSchedule: supervisionRows.filter((request) => getSupervisionStatus(request) === 'ยังไม่กำหนดวัน').length,
+        thisWeek: supervisionRows.filter((request) => isDateInCurrentWeek(request.supervisionAppointment?.date)).length,
+        pendingEvaluation: supervisionRows.filter((request) => !request.supervisionReport).length
+    };
+
+    const statusChipMap = {
+        'ยังไม่กำหนดวัน': 'warning',
+        'นัดแล้ว': 'info',
+        'นิเทศแล้ว': 'success',
+        'รอส่งรายงาน': 'warning'
     };
 
     return (
         <div className="admin-dashboard-container">
-            <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+            <div className="mobile-top-navbar">
+                <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
+                <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+            </div>
             <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
             <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
                 <div className="sidebar-header">
-                    <h2>👨‍🏫 อาจารย์ที่ปรึกษา</h2>
+                    <h2> อาจารย์ที่ปรึกษา</h2>
                 </div>
                 <nav className="sidebar-nav">
                     <Link to="/advisor-dashboard" className="nav-item">
-                        <span className="nav-icon">🏠</span>
                         <span>หน้าหลัก</span>
                     </Link>
                     <Link to="/advisor-dashboard/students" className="nav-item">
-                        <span className="nav-icon">🎓</span>
                         <span>รายชื่อนักศึกษาฝึกงาน</span>
                     </Link>
                     <Link to="/advisor-dashboard/supervision" className="nav-item active">
-                        <span className="nav-icon">🚗</span>
                         <span>ตารางนิเทศงาน</span>
+                    </Link>
+                    <Link to="/advisor-dashboard/progress" className="nav-item">
+                        <span>เช็ค Progress</span>
                     </Link>
                 </nav>
                 <div className="sidebar-footer">
@@ -87,55 +302,246 @@ const AdvisorSupervisionPage = () => {
                 <header className="admin-header">
                     <div>
                         <h1>ตารางนิเทศงานสหกิจศึกษา</h1>
-                        <p>รายการสถานประกอบการที่ต้องออกนิเทศ</p>
+                        <p>ภาพรวมและการติดตามนิเทศของ {advisorName}</p>
                     </div>
                 </header>
 
-                <div className="content-section">
-                    
-                    {supervisionList.length > 0 ? (
-                        <div className="supervision-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '20px', marginTop: '20px' }}>
-                            {supervisionList.map((company, index) => (
-                                <div key={index} className="company-card" style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', borderTop: '4px solid #667eea' }}>
-                                    <div style={{ marginBottom: '15px' }}>
-                                        <h3 style={{ margin: '0 0 10px 0', color: '#2d3748' }}>🏢 {company.name}</h3>
-                                        <p style={{ color: '#718096', fontSize: '0.9rem', display: 'flex', gap: '5px' }}>
-                                            📍 <span>{company.address}</span>
-                                        </p>
-                                    </div>
-                                    
-                                    <div style={{ borderTop: '1px solid #edf2f7', paddingTop: '15px' }}>
-                                        <h4 style={{ margin: '0 0 10px 0', fontSize: '0.95rem', color: '#4a5568' }}>นักศึกษาที่ต้องนิเทศ ({company.students.length})</h4>
-                                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                                            {company.students.map((student, sIndex) => (
-                                                <li key={sIndex} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: sIndex !== company.students.length - 1 ? '1px dashed #edf2f7' : 'none' }}>
-                                                    <span style={{ fontWeight: 500 }}>{student.studentName}</span>
-                                                    <span style={{ fontSize: '0.85rem', color: '#718096', background: '#edf2f7', padding: '2px 6px', borderRadius: '4px' }}>
-                                                        {student.position}
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' },
+                        gap: 2,
+                        mb: 3,
+                    }}
+                >
+                    {[
+                        { title: 'นักศึกษาที่ดูแลทั้งหมด', value: summary.totalStudents, icon: STAT_EMOJI.TOTAL, color: '#667eea' },
+                        { title: 'รอนัดนิเทศ', value: summary.pendingSchedule, icon: STAT_EMOJI.PENDING, color: '#f093fb' },
+                        { title: 'นิเทศสัปดาห์นี้', value: summary.thisWeek, icon: STAT_EMOJI.CALENDAR, color: '#0284c7' },
+                        { title: 'ยังไม่ประเมิน', value: summary.pendingEvaluation, icon: STAT_EMOJI.NOTE, color: '#16a34a' },
+                    ].map((item) => (
+                        <Card
+                            key={item.title}
+                            elevation={0}
+                            sx={{
+                                borderRadius: 3,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                background: `linear-gradient(135deg, ${item.color}22 0%, #ffffff 56%)`,
+                                boxShadow: '0 8px 24px rgba(15, 23, 42, 0.06)',
+                            }}
+                        >
+                            <CardContent sx={{ p: 2.25, '&:last-child': { pb: 2.25 } }}>
+                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                    <Box
+                                        sx={{
+                                            width: 46,
+                                            height: 46,
+                                            borderRadius: 2,
+                                            display: 'grid',
+                                            placeItems: 'center',
+                                            fontWeight: 800,
+                                            fontSize: '1rem',
+                                            color: item.color,
+                                            backgroundColor: `${item.color}1a`,
+                                            border: `1px solid ${item.color}33`,
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        {item.icon}
+                                    </Box>
+                                    <Box sx={{ minWidth: 0 }}>
+                                        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5, fontWeight: 500 }}>
+                                            {item.title}
+                                        </Typography>
+                                        <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.1, color: 'text.primary' }}>
+                                            {item.value}
+                                        </Typography>
+                                    </Box>
+                                </Stack>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </Box>
 
-                                    <div style={{ marginTop: '15px' }}>
-                                       <button style={{ width: '100%', padding: '8px', background: '#ebf4ff', color: '#4299e1', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>
-                                            บันทึกผลการนิเทศ
-                                       </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="empty-state" style={{ textAlign: 'center', padding: '50px', background: 'white', borderRadius: '8px', marginTop: '20px' }}>
-                            <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🧘‍♂️</div>
-                            <h3>ยังไม่มีรายการนิเทศงาน</h3>
-                            <p style={{ color: '#718096' }}>ไม่มีนักศึกษาที่กำลังฝึกงาน หรือยังไม่ถึงกำหนดการนิเทศ</p>
-                        </div>
-                    )}
+                <Paper className="content-section" elevation={0} sx={{ width: '100%' }}>
+                    <div className="section-header">
+                        <h2>นักศึกษาที่ต้องนิเทศ</h2>
+                    </div>
 
-                </div>
+                    <TableContainer component={Box} className="compact-table">
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>นักศึกษา</TableCell>
+                                    <TableCell>บริษัท</TableCell>
+                                    <TableCell>วันที่เริ่ม</TableCell>
+                                    <TableCell>สถานะนิเทศ</TableCell>
+                                    <TableCell>นัดหมาย</TableCell>
+                                    <TableCell>Progress</TableCell>
+                                    <TableCell>Action</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {supervisionRows.length > 0 ? (
+                                    supervisionRows.map((request) => {
+                                        const supervisionStatus = getSupervisionStatus(request);
+                                        const progress = request.supervisionReport?.progress ?? getInternshipProgress(request);
+                                        const appointmentText = request.supervisionAppointment?.date
+                                            ? `${formatDate(request.supervisionAppointment.date)} (${request.supervisionAppointment.mode})`
+                                            : '-';
+
+                                        return (
+                                            <TableRow key={request.id} hover>
+                                                <TableCell>
+                                                    <Stack spacing={0.25}>
+                                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{request.studentName || '-'}</Typography>
+                                                        <Typography variant="caption" color="text.secondary">{request.studentId || '-'}</Typography>
+                                                    </Stack>
+                                                </TableCell>
+                                                <TableCell>{request.company || request.companyName || '-'}</TableCell>
+                                                <TableCell>{formatDate(request.startDate)}</TableCell>
+                                                <TableCell>
+                                                    <Alert severity={statusChipMap[supervisionStatus] || 'default'} sx={{ py: 0, px: 1 }} icon={false}>
+                                                        {supervisionStatus}
+                                                    </Alert>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Stack spacing={0.3}>
+                                                        <Typography variant="body2">{appointmentText}</Typography>
+                                                        {request.supervisionAppointment?.note && (
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                หมายเหตุ: {request.supervisionAppointment.note}
+                                                            </Typography>
+                                                        )}
+                                                    </Stack>
+                                                </TableCell>
+                                                <TableCell sx={{ minWidth: 180 }}>
+                                                    <Stack spacing={0.75}>
+                                                        <Typography variant="caption" color="text.secondary">ฝึกไปแล้ว {progress}%</Typography>
+                                                        <LinearProgress variant="determinate" value={progress} />
+                                                    </Stack>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
+                                                        <Button size="small" variant="outlined" onClick={() => openAppointmentDialog(request)}>
+                                                            กำหนดวันนิเทศ
+                                                        </Button>
+                                                        <Button size="small" variant="contained" onClick={() => openReportDialog(request)}>
+                                                            บันทึกผลนิเทศ
+                                                        </Button>
+                                                    </Stack>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                                            ไม่พบนักศึกษาที่ต้องนิเทศในสาขา {advisorDept || '-'}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Paper>
             </main>
+
+            <Dialog open={appointmentDialog.open} onClose={closeAppointmentDialog} fullWidth maxWidth="sm">
+                <DialogTitle>กำหนดวันนิเทศ</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <TextField
+                            fullWidth
+                            type="date"
+                            label="วันที่นิเทศ"
+                            value={appointmentDialog.date}
+                            onChange={(event) => setAppointmentDialog((prev) => ({ ...prev, date: event.target.value }))}
+                            InputLabelProps={{ shrink: true }}
+                        />
+                        <TextField
+                            select
+                            fullWidth
+                            label="รูปแบบ"
+                            value={appointmentDialog.mode}
+                            onChange={(event) => setAppointmentDialog((prev) => ({ ...prev, mode: event.target.value }))}
+                        >
+                            <MenuItem value="Online">Online</MenuItem>
+                            <MenuItem value="Onsite">Onsite</MenuItem>
+                        </TextField>
+                        <TextField
+                            fullWidth
+                            multiline
+                            minRows={3}
+                            label="หมายเหตุ"
+                            value={appointmentDialog.note}
+                            onChange={(event) => setAppointmentDialog((prev) => ({ ...prev, note: event.target.value }))}
+                        />
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeAppointmentDialog}>ยกเลิก</Button>
+                    <Button variant="contained" onClick={saveAppointment}>บันทึก</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={reportDialog.open} onClose={closeReportDialog} fullWidth maxWidth="sm">
+                <DialogTitle>บันทึกผลนิเทศ</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        <TextField
+                            fullWidth
+                            type="number"
+                            label="ความคืบหน้าการฝึกงาน (%)"
+                            value={reportDialog.progress}
+                            onChange={(event) => setReportDialog((prev) => ({ ...prev, progress: event.target.value }))}
+                            inputProps={{ min: 0, max: 100 }}
+                        />
+                        <TextField
+                            fullWidth
+                            multiline
+                            minRows={3}
+                            label="ปัญหาที่พบ"
+                            value={reportDialog.issues}
+                            onChange={(event) => setReportDialog((prev) => ({ ...prev, issues: event.target.value }))}
+                        />
+                        <TextField
+                            fullWidth
+                            multiline
+                            minRows={3}
+                            label="ข้อเสนอแนะ"
+                            value={reportDialog.suggestions}
+                            onChange={(event) => setReportDialog((prev) => ({ ...prev, suggestions: event.target.value }))}
+                        />
+                        <TextField
+                            select
+                            fullWidth
+                            label="สถานะ"
+                            value={reportDialog.result}
+                            onChange={(event) => setReportDialog((prev) => ({ ...prev, result: event.target.value }))}
+                        >
+                            <MenuItem value="ผ่าน">ผ่าน</MenuItem>
+                            <MenuItem value="ต้องติดตาม">ต้องติดตาม</MenuItem>
+                        </TextField>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeReportDialog}>ยกเลิก</Button>
+                    <Button variant="contained" onClick={saveReport}>บันทึก</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar
+                open={toast.open}
+                autoHideDuration={3000}
+                onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert onClose={() => setToast((prev) => ({ ...prev, open: false }))} severity={toast.severity} variant="filled">
+                    {toast.message}
+                </Alert>
+            </Snackbar>
         </div>
     );
 };

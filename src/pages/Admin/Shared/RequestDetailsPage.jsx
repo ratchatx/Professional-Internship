@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Snackbar, Alert as MuiAlert } from '@mui/material';
 import './RequestDetailsPage.css';
 
 const RequestDetailsPage = () => {
@@ -9,6 +10,7 @@ const RequestDetailsPage = () => {
   const [userRole, setUserRole] = useState('');
   const [loading, setLoading] = useState(true);
   const [rejectModal, setRejectModal] = useState({ open: false, reason: '' });
+  const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
   useEffect(() => {
     // 1. Get User Role
@@ -27,7 +29,7 @@ const RequestDetailsPage = () => {
     if (foundRequest) {
       setRequest(foundRequest);
     } else {
-      alert('ไม่พบข้อมูลคำร้อง');
+      setToast({ open: true, message: 'ไม่พบข้อมูลคำร้อง', severity: 'error' });
       navigate(-1);
     }
     setLoading(false);
@@ -55,7 +57,7 @@ const RequestDetailsPage = () => {
       );
       localStorage.setItem('requests', JSON.stringify(updatedRequests));
       setRequest({ ...request, status: newStatus });
-      alert(alertMsg);
+      setToast({ open: true, message: alertMsg, severity: 'success' });
       navigate(-1);
     }
   };
@@ -66,7 +68,7 @@ const RequestDetailsPage = () => {
 
   const handleRejectConfirm = () => {
     if (!rejectModal.reason.trim()) {
-      alert('กรุณาระบุเหตุผลที่ไม่อนุมัติ/ปฏิเสธ');
+      setToast({ open: true, message: 'กรุณาระบุเหตุผลที่ไม่อนุมัติ/ปฏิเสธ', severity: 'warning' });
       return;
     }
 
@@ -88,7 +90,7 @@ const RequestDetailsPage = () => {
       );
       localStorage.setItem('requests', JSON.stringify(updatedRequests));
       setRequest({ ...request, status: newStatus, rejectReason: reason });
-      alert('บันทึกผลการไม่อนุมัติ/ปฏิเสธเรียบร้อย');
+      setToast({ open: true, message: 'บันทึกผลการไม่อนุมัติ/ปฏิเสธเรียบร้อย', severity: 'info' });
       setRejectModal({ open: false, reason: '' });
       navigate(-1);
     }
@@ -137,7 +139,7 @@ const RequestDetailsPage = () => {
         </header>
 
         <section className="detail-section">
-          <h3>👤 ข้อมูลนักศึกษา</h3>
+          <h3>ข้อมูลนักศึกษา</h3>
           <div className="detail-grid">
             <div className="detail-item">
               <span className="detail-label">รหัสนักศึกษา</span>
@@ -165,7 +167,7 @@ const RequestDetailsPage = () => {
         </section>
 
         <section className="detail-section">
-          <h3>🏢 ข้อมูลสถานประกอบการ</h3>
+          <h3>ข้อมูลสถานประกอบการ</h3>
           <div className="detail-grid">
             <div className="detail-item">
               <span className="detail-label">ชื่อบริษัท/องค์กร</span>
@@ -183,7 +185,7 @@ const RequestDetailsPage = () => {
         </section>
 
         <section className="detail-section">
-          <h3>📅 ระยะเวลาการฝึกงาน</h3>
+          <h3> ระยะเวลาการฝึกงาน</h3>
           <div className="detail-grid">
             <div className="detail-item">
               <span className="detail-label">วันเริ่มฝึกงาน</span>
@@ -197,7 +199,7 @@ const RequestDetailsPage = () => {
         </section>
 
          <section className="detail-section">
-          <h3>📞 ข้อมูลพี่เลี้ยง/ผู้ดูแล</h3>
+          <h3> ข้อมูลพี่เลี้ยง/ผู้ดูแล</h3>
           <div className="detail-grid">
             <div className="detail-item">
               <span className="detail-label">ชื่อพี่เลี้ยง/ผู้ดูแล</span>
@@ -215,7 +217,7 @@ const RequestDetailsPage = () => {
         </section>
 
         <section className="detail-section">
-          <h3>📝 รายละเอียดงาน</h3>
+          <h3>รายละเอียดงาน</h3>
           <div className="detail-item">
              <span className="detail-label">ลักษณะงานที่ทำ</span>
              <p className="detail-value" style={{whiteSpace: 'pre-wrap'}}>{details.description || '-'}</p>
@@ -228,52 +230,65 @@ const RequestDetailsPage = () => {
 
         {request.rejectReason && (
              <section className="detail-section" style={{ backgroundColor: '#fff5f5', padding: '15px', borderRadius: '8px', border: '1px solid #fed7d7' }}>
-                <h3 style={{ color: '#c53030', borderLeftColor: '#c53030' }}>❌ เหตุผลที่ไม่อนุมัติ</h3>
+               <h3 style={{ color: '#c53030', borderLeftColor: '#c53030' }}>เหตุผลที่ไม่อนุมัติ</h3>
                 <p className="detail-value" style={{ color: '#c53030' }}>{request.rejectReason}</p>
              </section>
         )}
 
         <footer className="actions-footer">
-          <button className="btn-back" onClick={() => navigate(-1)}>
+          <Button variant="outlined" className="btn-back" onClick={() => navigate(-1)}>
             ย้อนกลับ
-          </button>
+          </Button>
           
           {canApprove && (
             <>
-              <button className="btn-reject-lg" onClick={handleReject}>
+              <Button variant="contained" color="error" className="btn-reject-lg" onClick={handleReject}>
                 ✗ ไม่อนุมัติ
-              </button>
-              <button className="btn-approve-lg" onClick={handleApprove}>
+              </Button>
+              <Button variant="contained" color="success" className="btn-approve-lg" onClick={handleApprove}>
                 ✓ อนุมัติคำร้อง
-              </button>
+              </Button>
             </>
           )}
         </footer>
       </div>
 
-      {rejectModal.open && (
-        <div className="modal-overlay" onClick={handleRejectClose}>
-          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-header">
-              <h2>ระบุเหตุผลที่ไม่อนุมัติ/ปฏิเสธ</h2>
-              <button className="close-btn" onClick={handleRejectClose}>&times;</button>
-            </div>
-            <div className="form-group">
-              <label>เหตุผล</label>
-              <textarea
-                rows="4"
-                value={rejectModal.reason}
-                onChange={(event) => setRejectModal(prev => ({ ...prev, reason: event.target.value }))}
-                placeholder="กรอกเหตุผลที่ไม่อนุมัติ/ปฏิเสธ"
-              />
-            </div>
-            <div className="form-actions">
-              <button type="button" className="btn-cancel" onClick={handleRejectClose}>ยกเลิก</button>
-              <button type="button" className="btn-submit" onClick={handleRejectConfirm}>ยืนยัน</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog open={rejectModal.open} onClose={handleRejectClose} fullWidth maxWidth="sm">
+        <DialogTitle>ระบุเหตุผลที่ไม่อนุมัติ/ปฏิเสธ</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            margin="dense"
+            label="เหตุผล"
+            value={rejectModal.reason}
+            onChange={(event) => setRejectModal(prev => ({ ...prev, reason: event.target.value }))}
+            placeholder="กรอกเหตุผลที่ไม่อนุมัติ/ปฏิเสธ"
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleRejectClose}>ยกเลิก</Button>
+          <Button variant="contained" color="error" onClick={handleRejectConfirm}>ยืนยัน</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={2600}
+        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <MuiAlert
+          elevation={6}
+          variant="filled"
+          onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+          severity={toast.severity}
+          sx={{ width: '100%' }}
+        >
+          {toast.message}
+        </MuiAlert>
+      </Snackbar>
     </div>
   );
 };

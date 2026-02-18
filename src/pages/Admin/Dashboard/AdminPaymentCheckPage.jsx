@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import asyncStorage from '../../../utils/asyncStorage';
+import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, TextField, MenuItem, Button, Snackbar, Alert as MuiAlert, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import './AdminPaymentCheckPage.css';
 
 const AdminPaymentCheckPage = () => {
@@ -22,6 +23,8 @@ const AdminPaymentCheckPage = () => {
     const [payments, setPayments] = useState([]);
     const [selectedDepartment, setSelectedDepartment] = useState('all');
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
+    const [slipDialog, setSlipDialog] = useState({ open: false, imageUrl: '', studentName: '', fileName: '' });
     
     useEffect(() => {
         const checkAdmin = async () => {
@@ -72,21 +75,54 @@ const AdminPaymentCheckPage = () => {
 
     const handleLogout = () => {
         localStorage.removeItem('user');
-        navigate('/login');
+        navigate('/');
     };
 
     const handleApprove = (id) => {
         const updated = payments.map(p => p.id === id ? { ...p, status: 'approved' } : p);
         setPayments(updated);
         // localStorage.setItem('payment_proofs', JSON.stringify(updated));
-        alert('อนุมัติการชำระเงินเรียบร้อย');
+        setToast({ open: true, message: 'อนุมัติการชำระเงินเรียบร้อย', severity: 'success' });
     };
 
     const handleReject = (id) => {
         const updated = payments.map(p => p.id === id ? { ...p, status: 'rejected' } : p);
         setPayments(updated);
         // localStorage.setItem('payment_proofs', JSON.stringify(updated));
-         alert('ปฏิเสธการชำระเงินเรียบร้อย');
+            setToast({ open: true, message: 'ปฏิเสธการชำระเงินเรียบร้อย', severity: 'info' });
+    };
+
+    const handleOpenSlip = (payment) => {
+        const imageUrl = payment.slipDataUrl || payment.slipUrl || '';
+        if (!imageUrl) {
+            setToast({ open: true, message: 'ไม่พบรูปสลิปของรายการนี้', severity: 'warning' });
+            return;
+        }
+
+        setSlipDialog({
+            open: true,
+            imageUrl,
+            studentName: payment.studentName,
+            fileName: payment.slipFileName || ''
+        });
+    };
+
+    const handleCloseSlip = () => {
+        setSlipDialog({ open: false, imageUrl: '', studentName: '', fileName: '' });
+    };
+
+    const handleDownloadSlip = () => {
+        if (!slipDialog.imageUrl) {
+            setToast({ open: true, message: 'ไม่พบรูปที่ต้องการดาวน์โหลด', severity: 'warning' });
+            return;
+        }
+
+        const link = document.createElement('a');
+        link.href = slipDialog.imageUrl;
+        link.download = slipDialog.fileName || `payment-slip-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
     
     // Get unique departments
@@ -99,39 +135,35 @@ const AdminPaymentCheckPage = () => {
 
     return (
         <div className="admin-dashboard-container">
-            <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+            <div className="mobile-top-navbar">
+                <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
+                <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+            </div>
             <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
             <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
                 <div className="sidebar-header">
-                    <h2>👨‍💼 ผู้ดูแลระบบ</h2>
+                    <h2> ผู้ดูแลระบบ</h2>
                 </div>
                 <nav className="sidebar-nav">
                     <Link to="/admin-dashboard" className="nav-item">
-                        <span className="nav-icon">🏠</span>
                         <span>หน้าหลัก</span>
                     </Link>
                     <Link to="/admin-dashboard/students" className="nav-item">
-                        <span className="nav-icon">👥</span>
                         <span>นักศึกษา</span>
                     </Link>
                     <Link to="/admin-dashboard/users" className="nav-item">
-                        <span className="nav-icon">⚙️</span>
                         <span>จัดการผู้ใช้</span>
                     </Link>
                     <Link to="/admin-dashboard/payments" className="nav-item active">
-                        <span className="nav-icon">💰</span>
                         <span>ตรวจสอบการชำระเงิน</span>
                     </Link>
                     <Link to="/admin-dashboard/checkins" className="nav-item">
-                        <span className="nav-icon">✅</span>
                         <span>เช็คชื่อรายวัน</span>
                     </Link>
                     <Link to="/admin-dashboard/reports" className="nav-item">
-                        <span className="nav-icon">📊</span>
                         <span>รายงาน</span>
                     </Link>  
                     <Link to="/admin-dashboard/profile" className="nav-item">
-                        <span className="nav-icon">👤</span>
                         <span>โปรไฟล์</span>
                     </Link>
                 </nav>
@@ -148,70 +180,130 @@ const AdminPaymentCheckPage = () => {
                         <h1>ตรวจสอบการชำระเงิน</h1>
                         <p>จัดการหลักฐานการชำระเงินจากนักศึกษา</p>
                     </div>
-                    <Link to="/" className="home-link">หน้าแรก</Link>
                 </header>
 
-                <div className="content-section">
-                    <div className="requests-table">
+                <Paper elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2, p: 2, mb: 3 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+                        รายการหลักฐานการชำระเงิน
+                    </Typography>
                         <div className="filter-group" style={{display: 'flex', gap: 10, alignItems: 'center'}}>
-                        <label>คัดกรองสาขา:</label>
-                        <select 
-                            value={selectedDepartment} 
+                        <TextField
+                            select
+                            size="small"
+                            label="คัดกรองสาขา"
+                            value={selectedDepartment}
                             onChange={(e) => setSelectedDepartment(e.target.value)}
-                            style={{padding: '5px 10px', borderRadius: '4px', border: '1px solid #ddd'}}
+                            sx={{ minWidth: 280 }}
                         >
-                            <option value="all">ทั้งหมด</option>
+                            <MenuItem value="all">ทั้งหมด</MenuItem>
                             {departments.map((dept, idx) => (
-                                <option key={idx} value={dept}>{dept}</option>
+                                <MenuItem key={idx} value={dept}>{dept}</MenuItem>
                             ))}
-                        </select>
-                    </div><br/>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>รหัสนักศึกษา</th>
-                                    <th>ชื่อ-นามสกุล</th>
-                                    <th>สาขา</th>
-                                    <th>วันที่ส่ง</th>
-                                    <th>หลักฐาน</th>
-                                    <th>สถานะ</th>
-                                    <th>จัดการ</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        </TextField>
+                                        </div><br/>
+                                                <TableContainer component={Box} className="compact-table">
+                                                    <Table size="small">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>รหัสนักศึกษา</TableCell>
+                                    <TableCell>ชื่อ-นามสกุล</TableCell>
+                                    <TableCell>สาขา</TableCell>
+                                    <TableCell>วันที่ส่ง</TableCell>
+                                    <TableCell>หลักฐาน</TableCell>
+                                    <TableCell>สถานะ</TableCell>
+                                    <TableCell>จัดการ</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
                                 {filteredPayments.map((payment) => (
-                                    <tr key={payment.id}>
-                                        <td>{payment.studentId}</td>
-                                        <td>{payment.studentName}</td>
-                                        <td>{payment.department}</td>
-                                        <td>{payment.date}</td>
-                                        <td>
-                                            <a href={payment.slipUrl} target="_blank" rel="noopener noreferrer" style={{color: '#667eea', textDecoration: 'underline'}}>
+                                    <TableRow key={payment.id} hover>
+                                        <TableCell>{payment.studentId}</TableCell>
+                                        <TableCell>{payment.studentName}</TableCell>
+                                        <TableCell>{payment.department}</TableCell>
+                                        <TableCell>{payment.date}</TableCell>
+                                        <TableCell>
+                                            <Button
+                                                size="small"
+                                                variant="text"
+                                                onClick={() => handleOpenSlip(payment)}
+                                                sx={{ textDecoration: 'underline', minWidth: 0, p: 0 }}
+                                            >
                                                 ดูสลิป
-                                            </a>
-                                        </td>
-                                        <td>
+                                            </Button>
+                                        </TableCell>
+                                        <TableCell>
                                             {payment.status === 'pending' && <span className="status-badge" style={{background: '#fff3cd', color: '#856404'}}>รอตรวจสอบ</span>}
                                             {payment.status === 'approved' && <span className="status-badge" style={{background: '#d4edda', color: '#155724'}}>อนุมัติแล้ว</span>}
                                             {payment.status === 'rejected' && <span className="status-badge" style={{background: '#f8d7da', color: '#721c24'}}>ไม่อนุมัติ</span>}
-                                        </td>
-                                        <td>
+                                        </TableCell>
+                                        <TableCell>
                                             {payment.status === 'pending' && (
                                                 <div className="action-buttons">
-                                                    <button className="btn-approve" onClick={() => handleApprove(payment.id)}>✓</button>
-                                                    <button className="btn-reject" onClick={() => handleReject(payment.id)}>✗</button>
+                                                    <Button size="small" variant="contained" color="success" onClick={() => handleApprove(payment.id)}>✓</Button>
+                                                    <Button size="small" variant="contained" color="error" onClick={() => handleReject(payment.id)}>✗</Button>
                                                 </div>
                                             )}
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
                                 {filteredPayments.length === 0 && (
-                                    <tr><td colSpan="7" style={{textAlign: 'center'}}>ไม่พบรายการแจ้งชำระเงิน</td></tr>
+                                    <TableRow><TableCell colSpan={7} align="center">ไม่พบรายการแจ้งชำระเงิน</TableCell></TableRow>
                                 )}
-                            </tbody>
-                        </table>
-                    </div>
-                 </div>
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                </Paper>
+
+                <Snackbar
+                    open={toast.open}
+                    autoHideDuration={2600}
+                    onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                >
+                    <MuiAlert
+                        elevation={6}
+                        variant="filled"
+                        onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+                        severity={toast.severity}
+                        sx={{ width: '100%' }}
+                    >
+                        {toast.message}
+                    </MuiAlert>
+                </Snackbar>
+
+                <Dialog
+                    open={slipDialog.open}
+                    onClose={handleCloseSlip}
+                    maxWidth="md"
+                    fullWidth
+                >
+                    <DialogTitle>
+                        สลิปการชำระเงิน {slipDialog.studentName ? `- ${slipDialog.studentName}` : ''}
+                    </DialogTitle>
+                    <DialogContent dividers>
+                        {slipDialog.fileName && (
+                            <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                                ชื่อไฟล์: {slipDialog.fileName}
+                            </Typography>
+                        )}
+                        <Box
+                            component="img"
+                            src={slipDialog.imageUrl}
+                            alt="slip-preview"
+                            sx={{
+                                width: '100%',
+                                maxHeight: '70vh',
+                                objectFit: 'contain',
+                                borderRadius: 1,
+                                border: '1px solid #e5e7eb'
+                            }}
+                        />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseSlip}>ปิด</Button>
+                        <Button variant="contained" onClick={handleDownloadSlip}>ดาวน์โหลด</Button>
+                    </DialogActions>
+                </Dialog>
             </main>
         </div>
     );

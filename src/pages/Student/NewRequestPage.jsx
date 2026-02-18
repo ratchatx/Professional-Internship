@@ -1,10 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { TextField, MenuItem, Button, Input } from '@mui/material';
 import api from '../../api/axios';
 import './NewRequestPage.css';
 import './Dashboard/DashboardPage.css'; // Import dashboard styles
 
 const NewRequestPage = () => {
+  const DIGIT_ONLY_FIELDS = new Set(['studentId', 'studentYear', 'studentPhone', 'supervisorPhone', 'homePostal']);
+  const MAX_DIGIT_LENGTH_FIELDS = {
+    studentPhone: 10,
+    supervisorPhone: 10,
+  };
   const departmentOptions = [
     'สาขาวิชาวิทยาการคอมพิวเตอร์',
     'สาขาวิชาเทคโนโลยีคอมพิวเตอร์และดิจิทัล',
@@ -116,7 +122,7 @@ const NewRequestPage = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    navigate('/login');
+    navigate('/');
   };
 
   const [formData, setFormData] = useState({
@@ -153,10 +159,49 @@ const NewRequestPage = () => {
 
   const [studentPhoto, setStudentPhoto] = useState(null);
 
+  const sanitizeGradeInput = (value) => {
+    let normalized = String(value || '').replace(/[^\d.]/g, '');
+    if (!normalized) return '';
+
+    if (normalized.startsWith('.')) {
+      normalized = `0${normalized}`;
+    }
+
+    const parts = normalized.split('.');
+    const integerPartRaw = parts[0] || '';
+    const decimalPartRaw = parts.slice(1).join('');
+
+    let integerPart = integerPartRaw.replace(/^0+(\d)/, '$1');
+    if (integerPart === '') integerPart = '0';
+
+    const integerNumber = Number(integerPart);
+    if (!Number.isNaN(integerNumber) && integerNumber > 4) {
+      integerPart = '4';
+    }
+
+    const decimalPart = decimalPartRaw.slice(0, 2);
+    return normalized.includes('.') ? `${integerPart}.${decimalPart}` : integerPart;
+  };
+
   const handleChange = (e) => {
+    const { name, value } = e.target;
+    let nextValue = value;
+
+    if (DIGIT_ONLY_FIELDS.has(name)) {
+      nextValue = value.replace(/\D/g, '');
+
+      if (MAX_DIGIT_LENGTH_FIELDS[name]) {
+        nextValue = nextValue.slice(0, MAX_DIGIT_LENGTH_FIELDS[name]);
+      }
+    }
+
+    if (name === 'lastSemesterGrade') {
+      nextValue = sanitizeGradeInput(value);
+    }
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: nextValue
     });
   };
 
@@ -351,35 +396,32 @@ const NewRequestPage = () => {
 
   return (
     <div className="dashboard-container">
-      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className="mobile-top-navbar">
+        <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
+        <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      </div>
       <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>🎓 นักศึกษา</h2>
+          <h2>นักศึกษา</h2>
         </div>
         <nav className="sidebar-nav">
           <Link to="/dashboard" className="nav-item">
-            <span className="nav-icon">🏠</span>
             <span>หน้าหลัก</span>
           </Link>
           <Link to="/dashboard/new-request" className="nav-item active">
-            <span className="nav-icon">➕</span>
             <span>ยื่นคำร้องใหม่</span>
           </Link>
           <Link to="/dashboard/my-requests" className="nav-item">
-            <span className="nav-icon">📝</span>
             <span>คำร้องของฉัน</span>
           </Link>
           <Link to="/dashboard/payment-proof" className="nav-item">
-            <span className="nav-icon">💰</span>
             <span>หลักฐานการชำระออกฝึก</span>
           </Link>
           <Link to="/dashboard/check-in" className="nav-item">
-            <span className="nav-icon">✅</span>
             <span>เช็คชื่อรายวัน</span>
           </Link>
           <Link to="/dashboard/profile" className="nav-item">
-            <span className="nav-icon">👤</span>
             <span>โปรไฟล์</span>
           </Link>
         </nav>
@@ -394,7 +436,7 @@ const NewRequestPage = () => {
         <div className="new-request-content"> {/* Renamed from container to avoid full height issues if any */}
           <div className="new-request-header">
             {/* Removed Back Button as we have sidebar now */}
-            <h1>📝 ยื่นคำร้องฝึกงานวิชาชีพ</h1>
+            <h1>ยื่นคำร้องฝึกงานวิชาชีพ</h1>
             <p>กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง</p>
           </div>
 
@@ -422,27 +464,28 @@ const NewRequestPage = () => {
                 textAlign: 'center',
                 boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
               }}>
-                <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>⚠️</span>
+                <span style={{ fontSize: '3rem', display: 'block', marginBottom: '1rem' }}>!</span>
                 <h2 style={{ marginBottom: '1rem', color: '#e53e3e' }}>ไม่สามารถยื่นคำร้องใหม่ได้</h2>
                 <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem', lineHeight: '1.6' }}>
                   คุณมีคำร้องที่อยู่ระหว่างการดำเนินการ <br/>
                   ระบบจำกัดการยื่นคำร้อง 1 รายการต่อ 1 บัญชีเท่านั้น
                 </p>
                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                  <button 
+                  <Button
                     onClick={() => navigate('/dashboard')}
                     className="btn-secondary"
                     style={{ padding: '0.75rem 1.5rem', cursor: 'pointer' }}
                   >
                     กลับหน้าหลัก
-                  </button>
-                  <button 
+                  </Button>
+                  <Button
                     onClick={() => navigate('/dashboard/my-requests')}
                     className="btn-primary"
-                    style={{ padding: '0.75rem 1.5rem', cursor: 'pointer', background: '#3182ce', color: 'white', border: 'none', borderRadius: '4px' }}
+                    variant="contained"
+                    style={{ padding: '0.75rem 1.5rem', cursor: 'pointer', background: '#3182ce', color: 'white', borderRadius: '4px' }}
                   >
                     ดูสถานะคำร้อง
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -455,45 +498,65 @@ const NewRequestPage = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="studentTitle">คำนำหน้า</label>
-                  <select id="studentTitle" name="studentTitle" value={formData.studentTitle} onChange={handleChange}>
-                    <option value="">-- เลือก --</option>
-                    <option value="นาย">นาย</option>
-                    <option value="นาง">นาง</option>
-                    <option value="นางสาว">นางสาว</option>
-                  </select>
+                  <TextField select fullWidth id="studentTitle" name="studentTitle" value={formData.studentTitle} onChange={handleChange} size="small">
+                    <MenuItem value="">-- เลือก --</MenuItem>
+                    <MenuItem value="นาย">นาย</MenuItem>
+                    <MenuItem value="นาง">นาง</MenuItem>
+                    <MenuItem value="นางสาว">นางสาว</MenuItem>
+                  </TextField>
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="studentName">ชื่อ-นามสกุล</label>
-                  <input type="text" id="studentName" name="studentName" value={formData.studentName} onChange={handleChange} placeholder="ชื่อ-นามสกุล" />
+                  <TextField fullWidth size="small" type="text" id="studentName" name="studentName" value={formData.studentName} onChange={handleChange} placeholder="ชื่อ-นามสกุล" />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="studentId">รหัสนักศึกษา</label>
-                  <input type="text" id="studentId" name="studentId" value={formData.studentId} onChange={handleChange} placeholder="รหัสนักศึกษา" />
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="text"
+                    id="studentId"
+                    name="studentId"
+                    value={formData.studentId}
+                    onChange={handleChange}
+                    placeholder="รหัสนักศึกษา"
+                    inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 13 }}
+                  />
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="studentYear">ปีการศึกษา/ชั้นปี</label>
-                  <input type="text" id="studentYear" name="studentYear" value={formData.studentYear} onChange={handleChange} placeholder="เช่น ปี 4" />
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="text"
+                    id="studentYear"
+                    name="studentYear"
+                    value={formData.studentYear}
+                    onChange={handleChange}
+                    placeholder="เช่น ปี 2566 หรือ ชั้นปี 3"
+                    inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 2 }}
+                  />
                 </div>
               </div>
 
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="lastSemesterGrade">เกรดเฉลี่ยเทอมล่าสุด</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="4.00"
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="text"
                     id="lastSemesterGrade"
                     name="lastSemesterGrade"
                     value={formData.lastSemesterGrade}
                     onChange={handleChange}
                     placeholder="เช่น 3.50"
+                    inputProps={{ inputMode: 'decimal', pattern: '^([0-3](\\.[0-9]{0,2})?|4(\\.0{0,2})?)?$' }}
                   />
                 </div>
               </div>
@@ -501,25 +564,25 @@ const NewRequestPage = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="studentMajor">สาขา</label>
-                  <select id="studentMajor" name="studentMajor" value={formData.studentMajor} onChange={handleChange}>
-                    <option value="">เลือกสาขา</option>
+                  <TextField select fullWidth size="small" id="studentMajor" name="studentMajor" value={formData.studentMajor} onChange={handleChange}>
+                    <MenuItem value="">เลือกสาขา</MenuItem>
                     {departmentOptions.map((dept) => (
-                      <option key={dept} value={dept}>{dept}</option>
+                      <MenuItem key={dept} value={dept}>{dept}</MenuItem>
                     ))}
-                  </select>
+                  </TextField>
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="studentFaculty">คณะ/วิทยาลัย</label>
-                  <input type="text" id="studentFaculty" name="studentFaculty" value={formData.studentFaculty} onChange={handleChange} placeholder="คณะ/วิทยาลัย" />
+                  <TextField fullWidth size="small" type="text" id="studentFaculty" name="studentFaculty" value={formData.studentFaculty} onChange={handleChange} placeholder="คณะ/วิทยาลัย" />
                 </div>
               </div>
 
               <div className="form-group">
                 <label htmlFor="homeAddress">ที่อยู่ตามบัตรประชาชน</label>
                 <div className="form-row">
-                  <input type="text" id="homeHouse" name="homeHouse" value={formData.homeHouse} onChange={handleChange} placeholder="บ้านเลขที่" />
-                  <input type="text" id="homeMoo" name="homeMoo" value={formData.homeMoo} onChange={handleChange} placeholder="หมู่" />
+                  <TextField fullWidth size="small" type="text" id="homeHouse" name="homeHouse" value={formData.homeHouse} onChange={handleChange} placeholder="บ้านเลขที่" />
+                  <TextField fullWidth size="small" type="text" id="homeMoo" name="homeMoo" value={formData.homeMoo} onChange={handleChange} placeholder="หมู่" />
                 </div>
                 {addressError && (
                   <p className="field-hint" style={{ color: '#c53030' }}>{addressError}</p>
@@ -527,45 +590,55 @@ const NewRequestPage = () => {
                 <div className="form-row">
                   {useManualAddress ? (
                     <>
-                      <input type="text" id="homeTambon" name="homeTambon" value={formData.homeTambon} onChange={handleChange} placeholder="ตำบล" />
-                      <input type="text" id="homeAmphur" name="homeAmphur" value={formData.homeAmphur} onChange={handleChange} placeholder="อำเภอ" />
+                      <TextField fullWidth size="small" type="text" id="homeTambon" name="homeTambon" value={formData.homeTambon} onChange={handleChange} placeholder="ตำบล" />
+                      <TextField fullWidth size="small" type="text" id="homeAmphur" name="homeAmphur" value={formData.homeAmphur} onChange={handleChange} placeholder="อำเภอ" />
                     </>
                   ) : (
                     <>
-                      <select id="homeProvince" name="homeProvince" value={formData.homeProvince} onChange={handleProvinceChange}>
-                        <option value="">เลือกจังหวัด</option>
+                      <TextField select fullWidth size="small" id="homeProvince" name="homeProvince" value={formData.homeProvince} onChange={handleProvinceChange}>
+                        <MenuItem value="">เลือกจังหวัด</MenuItem>
                         {provinceOptions.map((province) => (
-                          <option key={province.id} value={province.name_th}>{province.name_th}</option>
+                          <MenuItem key={province.id} value={province.name_th}>{province.name_th}</MenuItem>
                         ))}
-                      </select>
-                      <select id="homeAmphur" name="homeAmphur" value={formData.homeAmphur} onChange={handleAmphureChange} disabled={!selectedProvinceId}>
-                        <option value="">เลือกอำเภอ</option>
+                      </TextField>
+                      <TextField select fullWidth size="small" id="homeAmphur" name="homeAmphur" value={formData.homeAmphur} onChange={handleAmphureChange} disabled={!selectedProvinceId}>
+                        <MenuItem value="">เลือกอำเภอ</MenuItem>
                         {amphureOptions
                           .filter((amphure) => amphure.province_id === selectedProvinceId)
                           .map((amphure) => (
-                            <option key={amphure.id} value={amphure.name_th}>{amphure.name_th}</option>
+                            <MenuItem key={amphure.id} value={amphure.name_th}>{amphure.name_th}</MenuItem>
                           ))}
-                      </select>
+                      </TextField>
                     </>
                   )}
                 </div>
                 <div className="form-row">
                   {useManualAddress ? (
                     <>
-                      <input type="text" id="homeProvince" name="homeProvince" value={formData.homeProvince} onChange={handleChange} placeholder="จังหวัด" />
-                      <input type="text" id="homePostal" name="homePostal" value={formData.homePostal} onChange={handleChange} placeholder="รหัสไปรษณีย์" />
+                      <TextField fullWidth size="small" type="text" id="homeProvince" name="homeProvince" value={formData.homeProvince} onChange={handleChange} placeholder="จังหวัด" />
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="text"
+                        id="homePostal"
+                        name="homePostal"
+                        value={formData.homePostal}
+                        onChange={handleChange}
+                        placeholder="รหัสไปรษณีย์"
+                        inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 5 }}
+                      />
                     </>
                   ) : (
                     <>
-                      <select id="homeTambon" name="homeTambon" value={formData.homeTambon} onChange={handleTambonChange} disabled={!selectedAmphureId}>
-                        <option value="">เลือกตำบล</option>
+                      <TextField select fullWidth size="small" id="homeTambon" name="homeTambon" value={formData.homeTambon} onChange={handleTambonChange} disabled={!selectedAmphureId}>
+                        <MenuItem value="">เลือกตำบล</MenuItem>
                         {tambonOptions
                           .filter((tambon) => tambon.district_id === selectedAmphureId)
                           .map((tambon) => (
-                            <option key={tambon.id} value={tambon.name_th}>{tambon.name_th}</option>
+                            <MenuItem key={tambon.id} value={tambon.name_th}>{tambon.name_th}</MenuItem>
                           ))}
-                      </select>
-                      <input type="text" id="homePostal" name="homePostal" value={formData.homePostal} onChange={handleChange} placeholder="รหัสไปรษณีย์" readOnly />
+                      </TextField>
+                      <TextField fullWidth size="small" type="text" id="homePostal" name="homePostal" value={formData.homePostal} onChange={handleChange} placeholder="รหัสไปรษณีย์" InputProps={{ readOnly: true }} />
                     </>
                   )}
                 </div>
@@ -576,19 +649,29 @@ const NewRequestPage = () => {
 
               <div className="form-group">
                 <label htmlFor="studentPhone">เบอร์โทรศัพท์</label>
-                <input type="tel" id="studentPhone" name="studentPhone" value={formData.studentPhone} onChange={handleChange} placeholder="094-xxxxxxx" />
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="text"
+                  id="studentPhone"
+                  name="studentPhone"
+                  value={formData.studentPhone}
+                  onChange={handleChange}
+                  placeholder="094xxxxxxx"
+                  inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 10 }}
+                />
               </div>
               <div className="form-group">
                 <label htmlFor="studentEmail">อีเมลล์</label>
-                <input type="email" id="studentEmail" name="studentEmail" value={formData.studentEmail} onChange={handleChange} placeholder="student@university.ac.th" />
+                <TextField fullWidth size="small" type="email" id="studentEmail" name="studentEmail" value={formData.studentEmail} onChange={handleChange} placeholder="student@university.ac.th" />
               </div>
               <div className="form-group">
                 <label htmlFor="studentPhoto">อัพโหลดรูปถ่ายนักศึกษา (JPG/PNG หรือ PDF)</label>
-                <input
+                <Input
                   type="file"
                   id="studentPhoto"
                   name="studentPhoto"
-                  accept="image/png, image/jpeg, application/pdf"
+                  inputProps={{ accept: 'image/png, image/jpeg, application/pdf' }}
                   onChange={handleFileChange}
                 />
                 {studentPhoto && (
@@ -603,7 +686,9 @@ const NewRequestPage = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="companyName">ชื่อบริษัท/องค์กร *</label>
-                  <input
+                  <TextField
+                    fullWidth
+                    size="small"
                     type="text"
                     id="companyName"
                     name="companyName"
@@ -616,7 +701,9 @@ const NewRequestPage = () => {
 
                 <div className="form-group">
                   <label htmlFor="position">ตำแหน่งที่ฝึกงาน *</label>
-                  <input
+                  <TextField
+                    fullWidth
+                    size="small"
                     type="text"
                     id="position"
                     name="position"
@@ -630,7 +717,10 @@ const NewRequestPage = () => {
 
               <div className="form-group">
                 <label htmlFor="address">ที่อยู่สถานประกอบการ *</label>
-                <textarea
+                <TextField
+                  fullWidth
+                  size="small"
+                  multiline
                   id="address"
                   name="address"
                   value={formData.address}
@@ -644,24 +734,30 @@ const NewRequestPage = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="startDate">วันที่เริ่มฝึกงาน *</label>
-                  <input
+                  <TextField
+                    fullWidth
+                    size="small"
                     type="date"
                     id="startDate"
                     name="startDate"
                     value={formData.startDate}
                     onChange={handleChange}
+                    InputLabelProps={{ shrink: true }}
                     required
                   />
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="endDate">วันที่สิ้นสุดฝึกงาน *</label>
-                  <input
+                  <TextField
+                    fullWidth
+                    size="small"
                     type="date"
                     id="endDate"
                     name="endDate"
                     value={formData.endDate}
                     onChange={handleChange}
+                    InputLabelProps={{ shrink: true }}
                     required
                   />
                 </div>
@@ -670,7 +766,9 @@ const NewRequestPage = () => {
               <h3>ข้อมูลหัวหน้าหน่วยงาน/ผู้ดูแล</h3>
               <div className="form-group">
                 <label htmlFor="supervisor"></label>
-                <input
+                <TextField
+                  fullWidth
+                  size="small"
                   type="text"
                   id="supervisor"
                   name="supervisor"
@@ -684,7 +782,9 @@ const NewRequestPage = () => {
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="supervisorPosition">ตำแหน่ง</label>
-                  <input
+                  <TextField
+                    fullWidth
+                    size="small"
                     type="text"
                     id="supervisorPosition"
                     name="supervisorPosition"
@@ -696,7 +796,9 @@ const NewRequestPage = () => {
 
                 <div className="form-group">
                   <label htmlFor="supervisorEmail">อีเมลหัวหน้าหน่วยงาน</label>
-                  <input
+                  <TextField
+                    fullWidth
+                    size="small"
                     type="email"
                     id="supervisorEmail"
                     name="supervisorEmail"
@@ -709,13 +811,16 @@ const NewRequestPage = () => {
 
               <div className="form-group">
                 <label htmlFor="supervisorPhone">เบอร์โทรหัวหน้าหน่วยงาน</label>
-                <input
-                  type="tel"
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="text"
                   id="supervisorPhone"
                   name="supervisorPhone"
                   value={formData.supervisorPhone}
                   onChange={handleChange}
                   placeholder="0812345678"
+                  inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 10 }}
                 />
               </div>
             </div>
@@ -725,7 +830,10 @@ const NewRequestPage = () => {
               
               <div className="form-group">
                 <label htmlFor="jobDescription">รายละเอียดงาน *</label>
-                <textarea
+                <TextField
+                  fullWidth
+                  size="small"
+                  multiline
                   id="jobDescription"
                   name="jobDescription"
                   value={formData.jobDescription}
@@ -738,7 +846,10 @@ const NewRequestPage = () => {
 
               <div className="form-group">
                 <label htmlFor="skills">ทักษะที่คาดว่าจะได้รับ *</label>
-                <textarea
+                <TextField
+                  fullWidth
+                  size="small"
+                  multiline
                   id="skills"
                   name="skills"
                   value={formData.skills}
@@ -754,9 +865,9 @@ const NewRequestPage = () => {
               <Link to="/dashboard" className="btn-cancel">
                 ยกเลิก
               </Link>
-              <button type="submit" className="btn-submit">
+              <Button type="submit" variant="contained" className="btn-submit">
                 ยื่นคำร้อง
-              </button>
+              </Button>
             </div>
           </form>
         </div>

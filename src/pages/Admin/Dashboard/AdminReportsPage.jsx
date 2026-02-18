@@ -1,174 +1,289 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import * as am5 from '@amcharts/amcharts5';
+import * as am5xy from '@amcharts/amcharts5/xy';
+import * as am5percent from '@amcharts/amcharts5/percent';
+import am5themes_Animated from '@amcharts/amcharts5/themes/Animated';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  Divider,
+  MenuItem,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from '@mui/material';
 import './AdminDashboardPage.css';
 import './AdminReportsPage.css';
 
 const AdminReportsPage = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
-  const [students, setStudents] = useState([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const statusPieRef = useRef(null);
+  const departmentBarRef = useRef(null);
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      if (user.role !== 'admin') {
-         navigate('/dashboard'); 
-         return;
-      }
-      
-      // Load requests
-      const storedRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-      setRequests(storedRequests);
-
-      // Load students (optional, if we want to cross reference)
-      const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
-      setStudents(storedUsers.filter(u => u.role === 'student'));
-      
-    } else {
+    if (!userStr) {
       navigate('/login');
+      return;
     }
+
+    const user = JSON.parse(userStr);
+    if (user.role !== 'admin') {
+      navigate('/dashboard');
+      return;
+    }
+
+    const storedRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+    setRequests(storedRequests);
   }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    navigate('/login');
+    navigate('/');
   };
 
-  // Calculate statistics
-  const totalRequests = requests.length;
-  const pendingRequests = requests.filter(r => r.status === 'รอผู้ดูแลระบบอนุมัติ').length;
-  const approvedRequests = requests.filter(r => r.status === 'อนุมัติแล้ว').length;
-  const rejectedRequests = requests.filter(r => r.status.includes('ไม่อนุมัติ')).length;
-  const internshipStarted = requests.filter(r => r.status === 'ออกฝึกงาน').length;
-  const internshipFinished = requests.filter(r => r.status === 'ฝึกงานเสร็จแล้ว').length;
-    const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const parseDate = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  };
 
-    const msPerDay = 24 * 60 * 60 * 1000;
-    const normalizeDate = (value) => {
-        if (!value) return null;
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return null;
-        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    };
+  const departments = useMemo(() => {
+    const values = new Set();
+    requests.forEach((req) => values.add(req.department || 'ไม่ระบุ'));
+    return ['all', ...Array.from(values).sort((a, b) => a.localeCompare(b, 'th-TH'))];
+  }, [requests]);
 
-    const buildProgressRows = () => {
-        const today = normalizeDate(new Date());
+  const companies = useMemo(() => {
+    const values = new Set();
+    requests.forEach((req) => values.add(req.company || 'ไม่ระบุ'));
+    return ['all', ...Array.from(values).sort((a, b) => a.localeCompare(b, 'th-TH'))];
+  }, [requests]);
 
-        return requests
-            .map((req) => {
-                const details = req.details || {};
-                const start = normalizeDate(details.startDate || req.startDate);
-                const end = normalizeDate(details.endDate || req.endDate);
+  const filteredRequests = useMemo(() => {
+    const start = parseDate(startDate);
+    const end = parseDate(endDate);
 
-                if (!start || !end) return null;
+    return requests.filter((req) => {
+      const reqDate = parseDate(req.submittedDate);
+      const reqDepartment = req.department || 'ไม่ระบุ';
+      const reqCompany = req.company || 'ไม่ระบุ';
 
-                const totalDays = Math.max(1, Math.floor((end - start) / msPerDay) + 1);
-                let elapsedDays = 0;
+      if (departmentFilter !== 'all' && reqDepartment !== departmentFilter) return false;
+      if (companyFilter !== 'all' && reqCompany !== companyFilter) return false;
+      if (start && (!reqDate || reqDate < start)) return false;
+      if (end && (!reqDate || reqDate > end)) return false;
+      return true;
+    });
+  }, [requests, startDate, endDate, departmentFilter, companyFilter]);
 
-                if (today < start) elapsedDays = 0;
-                else if (today > end) elapsedDays = totalDays;
-                else elapsedDays = Math.floor((today - start) / msPerDay) + 1;
+  const statusDistribution = useMemo(() => {
+    const map = {};
+    filteredRequests.forEach((req) => {
+      const key = req.status || 'ไม่ระบุ';
+      map[key] = (map[key] || 0) + 1;
+    });
+    return Object.entries(map)
+      .map(([status, total], index) => ({ status, total, color: ['#2563eb', '#db2777', '#7c3aed', '#16a34a', '#dc2626', '#ea580c', '#0f766e'][index % 7] }))
+      .sort((a, b) => b.total - a.total);
+  }, [filteredRequests]);
 
-                const progress = Math.min(100, Math.max(0, Math.round((elapsedDays / totalDays) * 100)));
-                const remainingDays = Math.max(0, totalDays - elapsedDays);
-
-                return {
-                    id: req.id,
-                    studentName: req.studentName || details.student_info?.name || '- ',
-                    company: req.company || req.companyName || details.companyName || '- ',
-                    department: req.department || details.student_info?.major || '- ',
-                    start,
-                    end,
-                    progress,
-                    totalDays,
-                    elapsedDays,
-                    remainingDays,
-                    status: req.status
-                };
-            })
-            .filter(Boolean)
-            .sort((a, b) => b.progress - a.progress);
-    };
-
-    const progressRows = buildProgressRows();
-
-  // Group by Department
-  const departmentStats = requests.reduce((acc, curr) => {
-    const dept = curr.department || 'ไม่ระบุ';
-    acc[dept] = (acc[dept] || 0) + 1;
-    return acc;
-  }, {});
-
-    const internshipEligibleStatuses = new Set(['อนุมัติแล้ว', 'ออกฝึกงาน', 'ฝึกงานเสร็จแล้ว']);
-    const internshipRequests = requests.filter(req => internshipEligibleStatuses.has(req.status));
-    const departmentOptions = [
-        'all',
-        'สาขาวิชาวิทยาการคอมพิวเตอร์',
-        'สาขาวิชาเทคโนโลยีคอมพิวเตอร์และดิจิทัล',
-        'สาขาวิชาสาธารณสุขชุมชน',
-        'สาขาวิชาวิทยาศาสตร์การกีฬา',
-        'สาขาวิชาเทคโนโลยีการเกษตร',
-        'สาขาวิชาเทคโนโลยีและนวัตกรรมอาหาร',
-        'สาขาวิชาอาชีวอนามัยและความปลอดภัย',
-        'สาขาวิชาวิศวกรรมซอฟต์แวร์',
-        'สาขาวิชาวิศวกรรมโลจิสติกส์',
-        'สาขาวิศวกรรมการจัดการอุตสาหกรรมและสิ่งแวดล้อม',
-        'สาขาวิชาการออกแบบผลิตภัณฑ์และนวัตกรรมวัสดุ',
-        'สาขาวิชาเทคโนโลยีโยธาและสถาปัตยกรรม'
-    ];
-
-    const filteredInternshipStudents = internshipRequests.filter(req => {
-        if (selectedDepartment === 'all') return true;
-        return (req.department || 'ไม่ระบุ') === selectedDepartment;
+  const monthlyStats = useMemo(() => {
+    const map = {};
+    filteredRequests.forEach((req) => {
+      const date = new Date(req.submittedDate);
+      if (Number.isNaN(date.getTime())) return;
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      map[key] = (map[key] || 0) + 1;
     });
 
-  // Group by Company
-  const companyStats = requests.reduce((acc, curr) => {
-    const company = curr.company || 'ไม่ระบุ';
-    acc[company] = (acc[company] || 0) + 1;
-    return acc;
-  }, {});
+    return Object.keys(map)
+      .sort((a, b) => a.localeCompare(b))
+      .map((key) => {
+        const [year, month] = key.split('-').map(Number);
+        return {
+          key,
+          label: new Date(year, month - 1, 1).toLocaleDateString('th-TH', { month: 'short', year: 'numeric' }),
+          total: map[key],
+        };
+      });
+  }, [filteredRequests]);
+
+  const yearlyStats = useMemo(() => {
+    const map = {};
+    filteredRequests.forEach((req) => {
+      const date = new Date(req.submittedDate);
+      if (Number.isNaN(date.getTime())) return;
+      const key = String(date.getFullYear());
+      map[key] = (map[key] || 0) + 1;
+    });
+
+    return Object.keys(map)
+      .sort((a, b) => a.localeCompare(b))
+      .map((year) => ({ year, total: map[year] }));
+  }, [filteredRequests]);
+
+  const departmentStats = useMemo(() => {
+    const map = {};
+    filteredRequests.forEach((req) => {
+      const key = req.department || 'ไม่ระบุ';
+      map[key] = (map[key] || 0) + 1;
+    });
+
+    return Object.entries(map)
+      .map(([department, total]) => ({ department, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 8);
+  }, [filteredRequests]);
+
+  const summary = useMemo(() => {
+    const approved = filteredRequests.filter((req) => req.status === 'อนุมัติแล้ว').length;
+    const pending = filteredRequests.filter((req) => req.status === 'รอผู้ดูแลระบบตรวจสอบ' || req.status === 'รอผู้ดูแลระบบอนุมัติ').length;
+    const rejected = filteredRequests.filter((req) => req.status.includes('ไม่อนุมัติ') || req.status === 'ปฏิเสธ').length;
+    return { total: filteredRequests.length, approved, pending, rejected };
+  }, [filteredRequests]);
+
+  
+
+  useLayoutEffect(() => {
+    if (!statusPieRef.current) return undefined;
+
+    const root = am5.Root.new(statusPieRef.current);
+    root.setThemes([am5themes_Animated.new(root)]);
+
+    const chart = root.container.children.push(
+      am5percent.PieChart.new(root, {
+        layout: root.verticalLayout,
+        innerRadius: am5.percent(48),
+      }),
+    );
+
+    const series = chart.series.push(
+      am5percent.PieSeries.new(root, {
+        name: 'Status',
+        valueField: 'value',
+        categoryField: 'category',
+      }),
+    );
+
+    const pieData = statusDistribution.map((item) => ({
+      category: item.status,
+      value: item.total,
+      sliceSettings: {
+        fill: am5.color(item.color),
+        stroke: am5.color('#ffffff'),
+        strokeWidth: 1,
+      },
+    }));
+
+    series.data.setAll(pieData);
+    series.slices.template.setAll({ templateField: 'sliceSettings', tooltipText: '{category}: {value}' });
+    series.labels.template.setAll({ oversizedBehavior: 'truncate', maxWidth: 120, fontSize: 12 });
+    series.ticks.template.setAll({ forceHidden: false });
+
+    return () => {
+      root.dispose();
+    };
+  }, [statusDistribution]);
+
+  
+
+  useLayoutEffect(() => {
+    if (!departmentBarRef.current) return undefined;
+
+    const root = am5.Root.new(departmentBarRef.current);
+    root.setThemes([am5themes_Animated.new(root)]);
+
+    const chart = root.container.children.push(
+      am5xy.XYChart.new(root, {
+        panX: false,
+        panY: false,
+        wheelX: 'none',
+        wheelY: 'none',
+        paddingLeft: 0,
+      }),
+    );
+
+    const yAxis = chart.yAxes.push(
+      am5xy.CategoryAxis.new(root, {
+        categoryField: 'department',
+        renderer: am5xy.AxisRendererY.new(root, { minGridDistance: 20 }),
+      }),
+    );
+
+    const xAxis = chart.xAxes.push(
+      am5xy.ValueAxis.new(root, {
+        min: 0,
+        renderer: am5xy.AxisRendererX.new(root, {}),
+      }),
+    );
+
+    const series = chart.series.push(
+      am5xy.ColumnSeries.new(root, {
+        name: 'สาขา',
+        xAxis,
+        yAxis,
+        valueXField: 'total',
+        categoryYField: 'department',
+        tooltip: am5.Tooltip.new(root, { labelText: '{categoryY}: {valueX}' }),
+      }),
+    );
+
+    series.columns.template.setAll({
+      cornerRadiusTR: 6,
+      cornerRadiusBR: 6,
+      fill: am5.color('#7c3aed'),
+      strokeOpacity: 0,
+      height: am5.percent(60),
+    });
+
+    yAxis.data.setAll(departmentStats);
+    series.data.setAll(departmentStats);
+
+    return () => {
+      root.dispose();
+    };
+  }, [departmentStats]);
 
   return (
     <div className="admin-dashboard-container">
-      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className="mobile-top-navbar">
+        <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
+        <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      </div>
+
       <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>👨‍💼 ผู้ดูแลระบบ</h2>
+          <h2> ผู้ดูแลระบบ</h2>
         </div>
         <nav className="sidebar-nav">
-            <Link to="/admin-dashboard" className="nav-item">
-                        <span className="nav-icon">🏠</span>
-                        <span>หน้าหลัก</span>
-            </Link>
-            <Link to="/admin-dashboard/students" className="nav-item">
-                        <span className="nav-icon">👥</span>
-                        <span>นักศึกษา</span>
-            </Link>
-            <Link to="/admin-dashboard/users" className="nav-item">
-                        <span className="nav-icon">⚙️</span>
-                        <span>จัดการผู้ใช้</span>
-            </Link>
-            <Link to="/admin-dashboard/payments" className="nav-item">
-                        <span className="nav-icon">💰</span>
-                        <span>ตรวจสอบการชำระเงิน</span>
-            </Link>
-            <Link to="/admin-dashboard/checkins" className="nav-item">
-                        <span className="nav-icon">✅</span>
-                        <span>เช็คชื่อรายวัน</span>
-            </Link>
-            <Link to="/admin-dashboard/reports" className="nav-item active">
-                        <span className="nav-icon">📊</span>
-                        <span>รายงาน</span>
-            </Link>  
-            <Link to="/admin-dashboard/profile" className="nav-item">
-                        <span className="nav-icon">👤</span>
-                        <span>โปรไฟล์</span>
-            </Link>
-                </nav>
+          <Link to="/admin-dashboard" className="nav-item"><span>หน้าหลัก</span></Link>
+          <Link to="/admin-dashboard/students" className="nav-item"><span>นักศึกษา</span></Link>
+          <Link to="/admin-dashboard/users" className="nav-item"><span>จัดการผู้ใช้</span></Link>
+          <Link to="/admin-dashboard/payments" className="nav-item"><span>ตรวจสอบการชำระเงิน</span></Link>
+          <Link to="/admin-dashboard/checkins" className="nav-item"><span>เช็คชื่อรายวัน</span></Link>
+          <Link to="/admin-dashboard/reports" className="nav-item active"><span>รายงาน</span></Link>
+          <Link to="/admin-dashboard/profile" className="nav-item"><span>โปรไฟล์</span></Link>
+        </nav>
         <div className="sidebar-footer">
           <button onClick={handleLogout} className="logout-btn">
             <span>← ออกจากระบบ</span>
@@ -179,222 +294,223 @@ const AdminReportsPage = () => {
       <main className="admin-main">
         <header className="admin-header">
           <div>
-            <h1>รายงาน</h1>
-                        <p>สรุปสถานะคำร้องและความคืบหน้าระหว่างฝึกงาน</p>
+            <h1>รายงานเชิงวิเคราะห์</h1>
+            <p>ตารางเต็ม, ฟิลเตอร์ละเอียด, กราฟหลายแบบ และสถิติรายเดือน/รายปี</p>
           </div>
-          <Link to="/" className="home-link">หน้าแรก</Link>
         </header>
 
-        <div className="reports-content">
-            
-            {/* Summary Cards */}
-            <div className="stats-grid">
-                <div className="stat-card" style={{ borderTop: '4px solid #667eea' }}>
-                    <h3>ทั้งหมด</h3>
-                    <p className="big-number">{totalRequests}</p>
-                    <p>คำร้อง</p>
-                </div>
-                <div className="stat-card" style={{ borderTop: '4px solid #f093fb' }}>
-                    <h3>รอตรวจสอบ</h3>
-                    <p className="big-number">{pendingRequests}</p>
-                    <p>คำร้อง</p>
-                </div>
-                <div className="stat-card" style={{ borderTop: '4px solid #43e97b' }}>
-                    <h3>กำลังฝึกงาน</h3>
-                    <p className="big-number">{internshipStarted}</p>
-                    <p>คน</p>
-                </div>
-                <div className="stat-card" style={{ borderTop: '4px solid #fa709a' }}>
-                    <h3>ฝึกงานเสร็จสิ้น</h3>
-                    <p className="big-number">{internshipFinished}</p>
-                    <p>คน</p>
-                </div>
-            </div>
+        <Paper elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2, p: 2, mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Filter ละเอียด</Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', xl: 'repeat(5, 1fr)' },
+              gap: 1.5,
+            }}
+          >
+            <TextField
+              label="วันที่เริ่ม"
+              type="date"
+              InputLabelProps={{ shrink: true }}
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              fullWidth
+            />
+            <TextField
+              label="วันที่สิ้นสุด"
+              type="date"
+              InputLabelProps={{ shrink: true }}
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+              fullWidth
+            />
+            <TextField
+              select
+              label="สาขา"
+              value={departmentFilter}
+              onChange={(event) => setDepartmentFilter(event.target.value)}
+              fullWidth
+            >
+              {departments.map((item) => (
+                <MenuItem key={item} value={item}>{item === 'all' ? 'ทั้งหมด' : item}</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              label="บริษัท"
+              value={companyFilter}
+              onChange={(event) => setCompanyFilter(event.target.value)}
+              fullWidth
+            >
+              {companies.map((item) => (
+                <MenuItem key={item} value={item}>{item === 'all' ? 'ทั้งหมด' : item}</MenuItem>
+              ))}
+            </TextField>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setStartDate('');
+                setEndDate('');
+                setDepartmentFilter('all');
+                setCompanyFilter('all');
+              }}
+              sx={{ minHeight: 56 }}
+            >
+              ล้างตัวกรอง
+            </Button>
+          </Box>
+        </Paper>
 
-            <div className="reports-grid">
-                {/* Internship Progress */}
-                <div className="report-section full-width">
-                    <h3>📈 ความคืบหน้าระหว่างฝึกงาน</h3>
-                    {progressRows.length === 0 ? (
-                        <div className="empty-state">ไม่มีข้อมูลช่วงเวลาฝึกงาน</div>
-                    ) : (
-                        <div className="progress-list">
-                            {progressRows.map((row) => (
-                                <div className="progress-card" key={row.id}>
-                                    <div className="progress-header">
-                                        <div>
-                                            <div className="progress-title">{row.studentName}</div>
-                                            <div className="progress-subtitle">{row.department} • {row.company}</div>
-                                        </div>
-                                        <span className={`progress-status status-${row.status === 'ฝึกงานเสร็จแล้ว' ? 'done' : row.status === 'ออกฝึกงาน' ? 'active' : 'pending'}`}>
-                                            {row.status}
-                                        </span>
-                                    </div>
-                                    <div className="progress-meta">
-                                        <span>เริ่ม {row.start.toLocaleDateString('th-TH')}</span>
-                                        <span>สิ้นสุด {row.end.toLocaleDateString('th-TH')}</span>
-                                    </div>
-                                    <div className="progress-bar">
-                                        <div className="progress-bar-fill" style={{ width: `${row.progress}%` }} />
-                                    </div>
-                                    <div className="progress-footer">
-                                        <span>ทำไปแล้ว {row.elapsedDays}/{row.totalDays} วัน</span>
-                                        <span>เหลืออีก {row.remainingDays} วัน</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' },
+            gap: 2,
+            mb: 2,
+          }}
+        >
+          {[
+            { label: 'คำร้องทั้งหมด', value: summary.total, color: '#2563eb' },
+            { label: 'รอตรวจสอบ', value: summary.pending, color: '#d97706' },
+            { label: 'อนุมัติแล้ว', value: summary.approved, color: '#16a34a' },
+            { label: 'ไม่อนุมัติ', value: summary.rejected, color: '#dc2626' },
+          ].map((card) => (
+            <Card key={card.label} elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2 }}>
+              <CardContent>
+                <Typography variant="body2" sx={{ color: '#64748b', fontWeight: 600 }}>{card.label}</Typography>
+                <Typography variant="h4" sx={{ mt: 1, color: card.color, fontWeight: 700 }}>{card.value}</Typography>
+              </CardContent>
+            </Card>
+          ))}
+        </Box>
 
-                {/* Department Filter */}
-                <div className="report-section full-width">
-                    <div className="report-filter-header">
-                        <div>
-                            <h3>👥 รายชื่อนักศึกษาฝึกงานตามสาขา</h3>
-                            <p className="report-subtitle">เลือกสาขาเพื่อดูรายชื่อนักศึกษาที่ได้รับการฝึกงาน</p>
-                        </div>
-                        <div className="report-filter">
-                            <label htmlFor="department-filter">สาขา</label>
-                            <select
-                                id="department-filter"
-                                value={selectedDepartment}
-                                onChange={(event) => setSelectedDepartment(event.target.value)}
-                            >
-                                {departmentOptions.map((dept) => (
-                                    <option key={dept} value={dept}>
-                                        {dept === 'all' ? 'ทั้งหมด' : dept}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', xl: '1.4fr 1fr' },
+            gap: 2,
+            mb: 2,
+          }}
+        >
+          <Paper elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2, p: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>กราฟสถานะ (Pie)</Typography>
+            <Typography variant="body2" sx={{ color: '#64748b', mb: 2 }}>amCharts 5</Typography>
+            <Box ref={statusPieRef} className="report-amchart" />
+          </Paper>
 
-                    <div className="table-container">
-                        <table className="report-table">
-                            <thead>
-                                <tr>
-                                    <th>รหัสนักศึกษา</th>
-                                    <th>ชื่อ-นามสกุล</th>
-                                    <th>สาขาวิชา</th>
-                                    <th>บริษัท</th>
-                                    <th>สถานะ</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredInternshipStudents.length > 0 ? (
-                                    filteredInternshipStudents.map((req) => (
-                                        <tr key={req.id}>
-                                            <td>{req.studentId || '-'}</td>
-                                            <td>{req.studentName || '-'}</td>
-                                            <td>{req.department || 'ไม่ระบุ'}</td>
-                                            <td>{req.company || req.companyName || '-'}</td>
-                                            <td>
-                                                <span className={`status-badge status-${req.status === 'ฝึกงานเสร็จแล้ว' ? 'approved' : req.status === 'ออกฝึกงาน' ? 'pending' : 'other'}`}>
-                                                    {req.status}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="5">ไม่มีข้อมูลนักศึกษาฝึกงานในสาขานี้</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+          <Paper elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2, p: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>กราฟแยกตามสาขา</Typography>
+            <Typography variant="body2" sx={{ color: '#64748b', mb: 2 }}>amCharts 5</Typography>
+            <Box ref={departmentBarRef} className="report-amchart" />
+          </Paper>
+        </Box>
 
-                {/* Department Stats */}
-                <div className="report-section">
-                    <h3>📊 สถิติแยกตามสาขา</h3>
-                    <div className="table-container">
-                        <table className="report-table">
-                            <thead>
-                                <tr>
-                                    <th>สาขาวิชา</th>
-                                    <th>จำนวน (คำร้อง)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {Object.keys(departmentStats).length > 0 ? (
-                                    Object.entries(departmentStats).map(([dept, count]) => (
-                                        <tr key={dept}>
-                                            <td>{dept}</td>
-                                            <td>{count}</td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr><td colSpan="2">ไม่มีข้อมูล</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: '1fr 1fr' }, gap: 2, mb: 2 }}>
+          <Paper elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2, p: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>สถิติรายเดือน</Typography>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>เดือน</TableCell>
+                    <TableCell align="right">จำนวนคำร้อง</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {monthlyStats.map((row) => (
+                    <TableRow key={row.key}>
+                      <TableCell>{row.label}</TableCell>
+                      <TableCell align="right">{row.total}</TableCell>
+                    </TableRow>
+                  ))}
+                  {monthlyStats.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={2} align="center">ไม่มีข้อมูล</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
 
-                {/* Company Stats */}
-                <div className="report-section">
-                    <h3>🏢 บริษัทที่รับนักศึกษา</h3>
-                    <div className="table-container">
-                        <table className="report-table">
-                            <thead>
-                                <tr>
-                                    <th>บริษัท</th>
-                                    <th>จำนวน (คน)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {Object.keys(companyStats).length > 0 ? (
-                                    Object.entries(companyStats).map(([company, count]) => (
-                                        <tr key={company}>
-                                            <td>{company}</td>
-                                            <td>{count}</td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr><td colSpan="2">ไม่มีข้อมูล</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+          <Paper elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2, p: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>สถิติรายปี</Typography>
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>ปี</TableCell>
+                    <TableCell align="right">จำนวนคำร้อง</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {yearlyStats.map((row) => (
+                    <TableRow key={row.year}>
+                      <TableCell>{row.year}</TableCell>
+                      <TableCell align="right">{row.total}</TableCell>
+                    </TableRow>
+                  ))}
+                  {yearlyStats.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={2} align="center">ไม่มีข้อมูล</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        </Box>
 
-                {/* Recent Requests */}
-                 <div className="report-section full-width">
-                    <h3>🕒 คำร้องล่าสุด</h3>
-                    <div className="table-container">
-                        <table className="report-table">
-                            <thead>
-                                <tr>
-                                    <th>วันที่</th>
-                                    <th>นักศึกษา</th>
-                                    <th>บริษัท</th>
-                                    <th>สถานะ</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {requests.slice().reverse().slice(0, 5).map(req => (
-                                    <tr key={req.id}>
-                                        <td>{new Date(req.submittedDate).toLocaleDateString('th-TH')}</td>
-                                        <td>{req.studentName}</td>
-                                        <td>{req.company}</td>
-                                        <td>
-                                            <span className={`status-badge status-${req.status === 'อนุมัติแล้ว' ? 'approved' : req.status === 'รอผู้ดูแลระบบอนุมัติ' ? 'pending' : 'other'}`}>
-                                                {req.status}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {requests.length === 0 && <tr><td colSpan="4">ไม่มีข้อมูล</td></tr>}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </div>
-
-        </div>
+        <Paper elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2, p: 2 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} sx={{ mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>ตารางข้อมูลทั้งหมด</Typography>
+            <Chip label={`ทั้งหมด ${filteredRequests.length} รายการ`} />
+          </Stack>
+          <Divider sx={{ mb: 2 }} />
+          <TableContainer sx={{ maxHeight: 520 }}>
+            <Table stickyHeader size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>วันที่</TableCell>
+                  <TableCell>รหัสนักศึกษา</TableCell>
+                  <TableCell>ชื่อ-นามสกุล</TableCell>
+                  <TableCell>สาขา</TableCell>
+                  <TableCell>บริษัท</TableCell>
+                  <TableCell>ตำแหน่ง</TableCell>
+                  <TableCell>สถานะ</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredRequests.map((req) => (
+                  <TableRow key={req.id} hover>
+                    <TableCell>{new Date(req.submittedDate).toLocaleDateString('th-TH')}</TableCell>
+                    <TableCell>{req.studentId || '-'}</TableCell>
+                    <TableCell>{req.studentName || '-'}</TableCell>
+                    <TableCell>{req.department || 'ไม่ระบุ'}</TableCell>
+                    <TableCell>{req.company || 'ไม่ระบุ'}</TableCell>
+                    <TableCell>{req.position || '-'}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={req.status || 'ไม่ระบุ'}
+                        sx={{
+                          bgcolor: req.status === 'อนุมัติแล้ว' ? '#dcfce7' : req.status?.includes('ไม่อนุมัติ') ? '#fee2e2' : '#e0e7ff',
+                          color: req.status === 'อนุมัติแล้ว' ? '#166534' : req.status?.includes('ไม่อนุมัติ') ? '#991b1b' : '#3730a3',
+                          fontWeight: 700,
+                        }}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredRequests.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
       </main>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, MenuItem } from '@mui/material';
 import api from '../../../api/axios';
 import './DashboardPage.css'; // Reusing layout styles
 import './MyRequestsPage.css'; // Specific styles for this page
@@ -60,7 +61,7 @@ const MyRequestsPage = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    navigate('/login');
+    navigate('/');
   };
 
   const filteredRequests = myRequests.filter(req => {
@@ -104,36 +105,33 @@ const MyRequestsPage = () => {
 
   return (
     <div className="dashboard-container">
-      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className="mobile-top-navbar">
+        <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
+        <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      </div>
       <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       {/* Sidebar - Reused Structure */}
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>🎓 นักศึกษา</h2>
+          <h2>นักศึกษา</h2>
         </div>
         <nav className="sidebar-nav">
           <Link to="/dashboard" className="nav-item">
-            <span className="nav-icon">🏠</span>
             <span>หน้าหลัก</span>
           </Link>
           <Link to="/dashboard/new-request" className="nav-item">
-            <span className="nav-icon">➕</span>
             <span>ยื่นคำร้องใหม่</span>
           </Link>
           <Link to="/dashboard/my-requests" className="nav-item active">
-            <span className="nav-icon">📝</span>
             <span>คำร้องของฉัน</span>
           </Link>
           <Link to="/dashboard/payment-proof" className="nav-item">
-            <span className="nav-icon">💰</span>
             <span>หลักฐานการชำระออกฝึก</span>
           </Link>
           <Link to="/dashboard/check-in" className="nav-item">
-            <span className="nav-icon">✅</span>
             <span>เช็คชื่อรายวัน</span>
           </Link>
           <Link to="/dashboard/profile" className="nav-item">
-            <span className="nav-icon">👤</span>
             <span>โปรไฟล์</span>
           </Link>
         </nav>
@@ -159,61 +157,67 @@ const MyRequestsPage = () => {
             {/* Filter Section */}
             <div className="filter-section">
                 <div className="search-box">
-                    <input 
-                        type="text" 
-                        placeholder="🔍 ค้นหาบริษัท หรือ ตำแหน่ง..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                    <TextField
+                      fullWidth
+                      size="small"
+                      placeholder="ค้นหาบริษัท หรือ ตำแหน่ง..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
                 <div className="status-filter">
-                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                        <option value="all">สถานะทั้งหมด</option>
-                        <option value="รออนุมัติ">รออนุมัติ</option>
-                        <option value="อนุมัติแล้ว">อนุมัติแล้ว</option>
-                        <option value="ไม่อนุมัติ">ไม่อนุมัติ</option>
-                    </select>
+                    <TextField
+                      select
+                      size="small"
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                    >
+                      <MenuItem value="all">สถานะทั้งหมด</MenuItem>
+                      <MenuItem value="รออนุมัติ">รออนุมัติ</MenuItem>
+                      <MenuItem value="อนุมัติแล้ว">อนุมัติแล้ว</MenuItem>
+                      <MenuItem value="ไม่อนุมัติ">ไม่อนุมัติ</MenuItem>
+                    </TextField>
                 </div>
             </div>
 
             {/* Requests Table */}
-            <div className="table-container">
-                <table className="requests-table">
-                    <thead>
-                        <tr>
-                            <th>บริษัท</th>
-                            <th>ตำแหน่ง</th>
-                            <th>วันที่ยื่น</th>
-                            <th>สถานะ</th>
-                            <th>จัดการ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <TableContainer className="table-container">
+              <Table size="small" className="requests-table" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>บริษัท</TableCell>
+                    <TableCell>ตำแหน่ง</TableCell>
+                    <TableCell>วันที่ยื่น</TableCell>
+                    <TableCell>สถานะ</TableCell>
+                    <TableCell>จัดการ</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                         {filteredRequests.length > 0 ? (
                             filteredRequests.map((req) => (
-                                <tr key={req.id}>
-                                    <td className="company-name"><span className="compact-text">{req.companyName}</span></td>
-                                    <td><span className="compact-text">{req.position}</span></td>
-                                    <td>
+                      <TableRow key={req.id} hover>
+                        <TableCell className="company-name"><span className="compact-text">{req.companyName}</span></TableCell>
+                        <TableCell><span className="compact-text">{req.position}</span></TableCell>
+                        <TableCell>
                                       <div>{formatThaiDateTime(req.submittedDate).date}</div>
                                       <div>{formatThaiDateTime(req.submittedDate).time}</div>
-                                    </td>
-                                    <td>{getStatusBadge(req.status)}</td>
-                                    <td>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(req.status)}</TableCell>
+                        <TableCell>
                                       <Link to={`/dashboard/request/${req.id}`} className="btn-view">
                                         รายละเอียด
                                       </Link>
-                                    </td>
-                                </tr>
+                        </TableCell>
+                      </TableRow>
                             ))
                         ) : (
-                            <tr>
-                            <td colSpan="5" className="no-data">ไม่พบข้อมูลคำร้อง</td>
-                            </tr>
+                    <TableRow>
+                      <TableCell colSpan={5} className="no-data">ไม่พบข้อมูลคำร้อง</TableCell>
+                    </TableRow>
                         )}
-                    </tbody>
-                </table>
-            </div>
+                </TableBody>
+              </Table>
+            </TableContainer>
         </div>
       </main>
     </div>

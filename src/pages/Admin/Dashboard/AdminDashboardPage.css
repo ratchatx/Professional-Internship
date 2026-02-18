@@ -3,6 +3,7 @@
   min-height: 100vh;
   min-height: 100dvh;
   background: #ffffff;
+  padding-top: 60px;
 }
 
 /* Sidebar - reuse from DashboardPage */
@@ -12,6 +13,11 @@
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
+  height: calc(100dvh - 60px);
+  position: fixed;
+  top: 60px;
+  left: 0;
+  z-index: 1050;
 }
 
 .sidebar-header {
@@ -81,6 +87,7 @@
 /* Main Content */
 .admin-main {
   flex: 1;
+  margin-left: 260px;
   padding: 2rem;
   overflow-y: visible;
   min-width: 0;
@@ -122,55 +129,7 @@
   color: #ffffff;
 }
 
-/* Stats Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.stat-card {
-  background: #ffffff;
-  padding: 1.5rem;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s, box-shadow 0.3s;
-}
-
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.75rem;
-}
-
-.stat-info {
-  flex: 1;
-}
-
-.stat-title {
-  color: #333333;
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
-}
-
-.stat-value {
-  color: #111111;
-  font-size: 1.75rem;
-  font-weight: 700;
-}
+/* (Stats grid removed) */
 
 /* Content Section */
 .content-section {
@@ -199,6 +158,9 @@
 .filter-buttons {
   display: flex;
   gap: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  flex-wrap: nowrap;
 }
 
 .filter-btn {
@@ -224,15 +186,53 @@
   color: #ffffff;
 }
 
-/* Requests Table */
-.requests-table {
-  overflow-x: auto;
-  max-width: 100%;
-  -webkit-overflow-scrolling: touch;
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.sortable:hover {
+  color: #111111;
 }
 
-.requests-table table {
-  min-width: 720px;
+/* advisor student list overrides for gradient container */
+.content-section[style] {
+  color: #07122b; /* ensure text contrast on gradient */
+}
+
+/* Requests Table */
+.requests-table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto !important;
+  overflow-y: hidden;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+
+.requests-table .MuiTable-root {
+  width: max-content !important;
+  min-width: 1200px !important;
+  table-layout: auto;
+}
+
+.requests-table .MuiTableCell-root {
+  white-space: nowrap;
+}
+
+.requests-table .action-buttons {
+  flex-wrap: nowrap;
+}
+
+.dashboard-amchart {
+  width: 100%;
+  height: 290px;
+}
+
+/* Prevent the whole page from creating a horizontal scrollbar; tables should scroll internally */
+html, body, .admin-dashboard-container {
+  overflow-x: hidden;
 }
 
 table {
@@ -250,14 +250,14 @@ th {
   color: #111111;
   font-weight: 600;
   border-bottom: 2px solid #e5e7eb;
-  word-break: break-word;
+  white-space: nowrap;
 }
 
 td {
   padding: 1rem;
   border-bottom: 1px solid #e5e7eb;
   color: #333333;
-  word-break: break-word;
+  white-space: nowrap;
 }
 
 .modal-overlay {
@@ -422,10 +422,74 @@ tbody tr:hover {
     align-items: flex-start;
   }
 
+  .dashboard-amchart {
+    height: 250px;
+  }
+
   .filter-buttons {
     width: 100%;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
+}
+
+/* Scrollbar styling (WebKit) and Firefox helpers */
+.filter-buttons,
+.requests-table,
+.compact-table {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(15,23,42,0.12) transparent; /* Firefox thumb + track */
+}
+
+.filter-buttons::-webkit-scrollbar {
+  height: 8px;
+}
+.filter-buttons::-webkit-scrollbar-track {
+  background: transparent;
+}
+.filter-buttons::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 999px;
+}
+.filter-buttons::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+.requests-table::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+.requests-table::-webkit-scrollbar-track {
+  background: transparent;
+}
+.requests-table::-webkit-scrollbar-thumb {
+  background: rgba(15,23,42,0.12);
+  border-radius: 8px;
+}
+.requests-table::-webkit-scrollbar-thumb:hover {
+  background: rgba(15,23,42,0.18);
+}
+
+/* compact table (latest 5) scroll styles reuse the same webkit rules */
+.compact-table {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.compact-table table {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+.compact-table::-webkit-scrollbar {
+  height: 8px;
+}
+.compact-table::-webkit-scrollbar-thumb {
+  background: rgba(15,23,42,0.12);
+  border-radius: 8px;
+}
+.compact-table::-webkit-scrollbar-thumb:hover {
+  background: rgba(15,23,42,0.18);
 }
 
 @media (max-width: 768px) {
@@ -444,44 +508,91 @@ tbody tr:hover {
   }
 
   .requests-table {
+    width: 100%;
+    overflow-x: auto;
     font-size: 0.875rem;
+  }
+
+  .requests-table table {
+    width: max-content;
+    min-width: 100%;
   }
 
   th, td {
     padding: 0.75rem 0.5rem;
+    white-space: nowrap;
   }
 
   .action-buttons {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: nowrap;
   }
 }
 
 @media (max-width: 640px) {
+  .requests-table {
+    -webkit-overflow-scrolling: touch;
+  }
+
   .requests-table table {
-    min-width: 600px;
+    width: max-content;
+    min-width: 100%;
   }
 
   .status-badge {
-    white-space: normal;
+    white-space: nowrap;
     text-align: center;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
 /* Mobile Menu Button - Default Hidden */
+.mobile-top-navbar {
+  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 12px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 1080;
+}
+
+.home-link {
+  display: none;
+}
+
 .mobile-menu-btn {
   display: none;
-  position: fixed;
-  top: 15px;
-  right: 15px;
-  z-index: 1100;
+  position: static;
   background: white;
   border: 1px solid #ddd;
   border-radius: 8px;
-  padding: 8px 12px;
+  width: 40px;
+  height: 40px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   cursor: pointer;
   font-size: 1.5rem;
   color: #333;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.mobile-top-logo {
+  width: 120px;
+  height: 38px;
+  background-image: url('../../../assets/LASC-SSKRU-1.png');
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: contain;
+  flex: 0 0 auto;
 }
 
 .sidebar-overlay {
@@ -499,16 +610,18 @@ tbody tr:hover {
   display: block;
 }
 
-@media (max-width: 1199px) {
+@media (max-width: 767px), (max-width: 1024px) and (orientation: portrait) {
   .mobile-menu-btn {
-    display: block;
+    display: flex;
+    margin-left: auto;
+    z-index: 1090;
   }
 
   .sidebar {
     position: fixed;
-    top: 0;
+    top: 60px;
     left: -280px;
-    height: 100vh;
+    height: calc(100vh - 60px);
     width: 260px !important;
     z-index: 1050;
     transition: left 0.3s ease;
@@ -549,56 +662,53 @@ tbody tr:hover {
   }
 
   .admin-main {
-    padding-top: 4rem;
+    margin-left: 0;
+    padding-top: 5rem;
   }
 
-  /* Responsive Table - Card View */
-  .table-responsive {
-    overflow-x: visible;
+  /* Keep all role tables as horizontal-scroll tables on mobile */
+  .table-responsive,
+  .requests-table {
+    overflow-x: auto !important;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
   }
 
   .data-table {
-    display: block;
+    display: table !important;
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
   }
 
   .data-table thead {
-    display: none;
+    display: table-header-group !important;
   }
 
   .data-table tbody {
-    display: block;
+    display: table-row-group !important;
   }
 
   .data-table tr {
-    display: block;
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    margin-bottom: 1rem;
-    padding: 1.25rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    display: table-row !important;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    margin-bottom: 0;
+    padding: 0;
+    box-shadow: none;
   }
 
   .data-table td {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid #edf2f7;
-    text-align: right;
-  }
-
-  .data-table td:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
+    display: table-cell !important;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+    white-space: nowrap;
   }
 
   .data-table td::before {
-    content: attr(data-label);
-    font-weight: 600;
-    color: #718096;
-    text-align: left;
-    margin-right: 1.5rem;
+    content: none !important;
   }
 
   /* Adjust user info layout in mobile card */

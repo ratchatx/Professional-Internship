@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { TextField, Button, Input } from '@mui/material';
-import asyncStorage from '../../../utils/asyncStorage';
-import './AdminDashboardPage.css';
-import '../../Student/Dashboard/ProfilePage.css';
+import { Button, Input, TextField } from '@mui/material';
+import '../Admin/Dashboard/AdminDashboardPage.css';
+import '../Student/Dashboard/ProfilePage.css';
 
-const AdminProfilePage = () => {
+const CompanyProfilePage = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -13,51 +12,45 @@ const AdminProfilePage = () => {
   const [avatarPreview, setAvatarPreview] = useState(null);
   const fileInputRef = useRef(null);
   const [form, setForm] = useState({
-    name: '',
-    email: '',
+    companyName: '',
     username: '',
+    email: '',
     phone: '',
-    position: ''
+    contactPerson: '',
+    address: ''
   });
 
   useEffect(() => {
-    let mounted = true;
-    asyncStorage.getItem('user').then((raw) => {
-      if (!mounted) return;
-      if (!raw) {
-        navigate('/login');
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(userStr);
+      if (parsed.role !== 'company') {
+        navigate('/dashboard');
         return;
       }
 
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed.role !== 'admin') {
-          navigate('/dashboard');
-          return;
-        }
-        setUser(parsed);
-        setForm({
-          name: parsed.full_name || parsed.name || '',
-          email: parsed.email || '',
-          username: parsed.username || '',
-          phone: parsed.phone || '',
-          position: parsed.position || 'ผู้ดูแลระบบ'
-        });
-        setAvatarPreview(parsed.avatar || null);
-      } catch (error) {
-        setUser(null);
-        navigate('/login');
-      }
-    });
-
-    return () => {
-      mounted = false;
-    };
+      setUser(parsed);
+      setAvatarPreview(parsed.avatar || null);
+      setForm({
+        companyName: parsed.companyName || parsed.name || parsed.full_name || '',
+        username: parsed.username || '',
+        email: parsed.email || '',
+        phone: parsed.phone || '',
+        contactPerson: parsed.contactPerson || '',
+        address: parsed.address || ''
+      });
+    } catch (error) {
+      navigate('/login');
+    }
   }, [navigate]);
 
-  const handleLogout = async () => {
-    await asyncStorage.removeItem('user');
-    setUser(null);
+  const handleLogout = () => {
+    localStorage.removeItem('user');
     navigate('/');
   };
 
@@ -73,7 +66,7 @@ const AdminProfilePage = () => {
   };
 
   const handleFileChange = (event) => {
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
@@ -83,15 +76,53 @@ const AdminProfilePage = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
+    if (!user) return;
+
     const updated = {
       ...user,
-      ...form,
-      full_name: form.name,
+      name: form.companyName,
+      companyName: form.companyName,
+      full_name: form.companyName,
+      username: form.username,
+      email: form.email,
+      phone: form.phone,
+      contactPerson: form.contactPerson,
+      address: form.address,
       avatar: avatarPreview,
-      role: 'admin'
+      role: 'company'
     };
-    await asyncStorage.setItem('user', JSON.stringify(updated));
+
+    localStorage.setItem('user', JSON.stringify(updated));
+
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    if (users.length > 0) {
+      const updatedUsers = users.map((storedUser) => {
+        const isSameUser =
+          (user.id && storedUser.id === user.id) ||
+          (user.username && storedUser.username === user.username) ||
+          (user.email && storedUser.email === user.email);
+
+        return isSameUser
+          ? {
+              ...storedUser,
+              name: form.companyName,
+              companyName: form.companyName,
+              full_name: form.companyName,
+              username: form.username,
+              email: form.email,
+              phone: form.phone,
+              contactPerson: form.contactPerson,
+              address: form.address,
+              avatar: avatarPreview,
+              role: 'company'
+            }
+          : storedUser;
+      });
+
+      localStorage.setItem('users', JSON.stringify(updatedUsers));
+    }
+
     setUser(updated);
     setEditing(false);
   };
@@ -104,34 +135,19 @@ const AdminProfilePage = () => {
         <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
         <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
       </div>
-      <div
-        className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`}
-        onClick={() => setIsMenuOpen(false)}
-      ></div>
+      <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2> ผู้ดูแลระบบ</h2>
+          <h2>สถานประกอบการ</h2>
         </div>
         <nav className="sidebar-nav">
-          <Link to="/admin-dashboard" className="nav-item">
+          <Link to="/company-dashboard" className="nav-item">
             <span>หน้าหลัก</span>
           </Link>
-          <Link to="/admin-dashboard/students" className="nav-item">
-            <span>นักศึกษา</span>
+          <Link to="/company-dashboard/interns" className="nav-item">
+            <span>รายชื่อนักศึกษาฝึกงาน</span>
           </Link>
-          <Link to="/admin-dashboard/users" className="nav-item">
-            <span>จัดการผู้ใช้</span>
-          </Link>
-          <Link to="/admin-dashboard/payments" className="nav-item">
-            <span>ตรวจสอบการชำระเงิน</span>
-          </Link>
-          <Link to="/admin-dashboard/checkins" className="nav-item">
-            <span>เช็คชื่อรายวัน</span>
-          </Link>
-          <Link to="/admin-dashboard/reports" className="nav-item">
-            <span>รายงาน</span>
-          </Link>
-          <Link to="/admin-dashboard/profile" className="nav-item active">
+          <Link to="/company-dashboard/profile" className="nav-item active">
             <span>โปรไฟล์</span>
           </Link>
         </nav>
@@ -145,29 +161,25 @@ const AdminProfilePage = () => {
       <main className="admin-main">
         <header className="admin-header">
           <div>
-            <h1>ข้อมูลผู้ดูแลระบบ</h1>
-            <p>จัดการข้อมูลโปรไฟล์และรูปภาพของคุณ</p>
+            <h1>ข้อมูลสถานประกอบการ</h1>
+            <p>จัดการข้อมูลโปรไฟล์บริษัท</p>
           </div>
           <div className="user-info">
-            <span>{user.name || user.username}</span>
+            <span>{form.companyName}</span>
           </div>
         </header>
 
         <div className="content-wrapper profile-content-wrapper">
           <div className="profile-layout">
             <div className="profile-avatar-section">
-              <div
-                className={`avatar-wrapper ${editing ? 'editable' : ''}`}
-                onClick={handleAvatarClick}
-              >
+              <div className={`avatar-wrapper ${editing ? 'editable' : ''}`} onClick={handleAvatarClick}>
                 {avatarPreview ? (
-                  <img src={avatarPreview} alt="Profile" className="avatar-img" />
+                  <img src={avatarPreview} alt="Company" className="avatar-img" />
                 ) : (
                   <div className="avatar-placeholder">
-                    <span>{user.username ? user.username.charAt(0).toUpperCase() : 'A'}</span>
+                    <span>{(form.companyName || 'C').charAt(0).toUpperCase()}</span>
                   </div>
                 )}
-
                 {editing && (
                   <div className="avatar-overlay">
                     <span>แก้ไขรูป</span>
@@ -181,19 +193,15 @@ const AdminProfilePage = () => {
                 sx={{ display: 'none' }}
                 inputProps={{ accept: 'image/*' }}
               />
-              <h3 className="profile-name-display">
-                {user.full_name || user.name || user.username}
-              </h3>
-              <span className="profile-role-badge">ผู้ดูแลระบบ</span>
+              <h3 className="profile-name-display">{form.companyName || '-'}</h3>
+              <span className="profile-role-badge">สถานประกอบการ</span>
             </div>
 
             <div className="profile-details-section">
               <div className="section-header-row">
                 <h3>รายละเอียดบัญชี</h3>
                 {!editing ? (
-                  <Button variant="outlined" onClick={() => setEditing(true)}>
-                    แก้ไขข้อมูล
-                  </Button>
+                  <Button variant="outlined" onClick={() => setEditing(true)}>แก้ไขข้อมูล</Button>
                 ) : (
                   <div className="edit-actions">
                     <Button
@@ -202,20 +210,19 @@ const AdminProfilePage = () => {
                       onClick={() => {
                         setEditing(false);
                         setForm({
-                          name: user.full_name || user.name || '',
-                          email: user.email || '',
+                          companyName: user.companyName || user.name || user.full_name || '',
                           username: user.username || '',
+                          email: user.email || '',
                           phone: user.phone || '',
-                          position: user.position || 'ผู้ดูแลระบบ'
+                          contactPerson: user.contactPerson || '',
+                          address: user.address || ''
                         });
                         setAvatarPreview(user.avatar || null);
                       }}
                     >
                       ยกเลิก
                     </Button>
-                    <Button variant="contained" onClick={handleSave}>
-                      บันทึกการเปลี่ยนแปลง
-                    </Button>
+                    <Button variant="contained" onClick={handleSave}>บันทึกการเปลี่ยนแปลง</Button>
                   </div>
                 )}
               </div>
@@ -224,20 +231,9 @@ const AdminProfilePage = () => {
                 <div className="form-group-profile">
                   <TextField
                     fullWidth
-                    label="ชื่อ-นามสกุล"
-                    name="name"
-                    value={form.name}
-                    onChange={handleChange}
-                    disabled={!editing}
-                  />
-                </div>
-
-                <div className="form-group-profile">
-                  <TextField
-                    fullWidth
-                    label="ตำแหน่ง"
-                    name="position"
-                    value={form.position}
+                    label="ชื่อบริษัท"
+                    name="companyName"
+                    value={form.companyName}
                     onChange={handleChange}
                     disabled={!editing}
                   />
@@ -257,9 +253,9 @@ const AdminProfilePage = () => {
                 <div className="form-group-profile">
                   <TextField
                     fullWidth
+                    type="email"
                     label="อีเมล"
                     name="email"
-                    type="email"
                     value={form.email}
                     onChange={handleChange}
                     disabled={!editing}
@@ -276,6 +272,30 @@ const AdminProfilePage = () => {
                     disabled={!editing}
                   />
                 </div>
+
+                <div className="form-group-profile">
+                  <TextField
+                    fullWidth
+                    label="ผู้ติดต่อ"
+                    name="contactPerson"
+                    value={form.contactPerson}
+                    onChange={handleChange}
+                    disabled={!editing}
+                  />
+                </div>
+
+                <div className="form-group-profile">
+                  <TextField
+                    fullWidth
+                    multiline
+                    minRows={3}
+                    label="ที่อยู่บริษัท"
+                    name="address"
+                    value={form.address}
+                    onChange={handleChange}
+                    disabled={!editing}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -285,4 +305,4 @@ const AdminProfilePage = () => {
   );
 };
 
-export default AdminProfilePage;
+export default CompanyProfilePage;

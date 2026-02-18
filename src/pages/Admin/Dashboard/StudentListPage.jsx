@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import asyncStorage from '../../../utils/asyncStorage';
+import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, MenuItem } from '@mui/material';
 import './AdminDashboardPage.css'; // Reusing admin styles for sidebar
 import './StudentListPage.css';
 
@@ -70,7 +71,7 @@ const StudentListPage = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    navigate('/login');
+    navigate('/');
   };
 
   const filteredStudents = students.filter((student) => {
@@ -81,39 +82,35 @@ const StudentListPage = () => {
 
   return (
     <div className="admin-dashboard-container">
-      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className="mobile-top-navbar">
+        <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
+        <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      </div>
       <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>👨‍💼 ผู้ดูแลระบบ</h2>
+          <h2> ผู้ดูแลระบบ</h2>
         </div>
         <nav className="sidebar-nav">
           <Link to="/admin-dashboard" className="nav-item">
-            <span className="nav-icon">🏠</span>
             <span>หน้าหลัก</span>
           </Link>
           <Link to="/admin-dashboard/students" className="nav-item active">
-            <span className="nav-icon">👥</span>
             <span>นักศึกษา</span>
           </Link>
           <Link to="/admin-dashboard/users" className="nav-item">
-            <span className="nav-icon">⚙️</span>
             <span>จัดการผู้ใช้</span>
           </Link>
           <Link to="/admin-dashboard/payments" className="nav-item">
-            <span className="nav-icon">💰</span>
             <span>ตรวจสอบการชำระเงิน</span>
           </Link>
           <Link to="/admin-dashboard/checkins" className="nav-item">
-            <span className="nav-icon">✅</span>
             <span>เช็คชื่อรายวัน</span>
           </Link>
           <Link to="/admin-dashboard/reports" className="nav-item">
-            <span className="nav-icon">📊</span>
             <span>รายงาน</span>
           </Link>
           <Link to="/admin-dashboard/profile" className="nav-item">
-            <span className="nav-icon">👤</span>
             <span>โปรไฟล์</span>
           </Link>
         </nav>
@@ -130,9 +127,6 @@ const StudentListPage = () => {
             <h1>รายชื่อนักศึกษา</h1>
             <p>จัดการข้อมูลนักศึกษาในระบบ</p>
           </div>
-          <Link to="/" className="home-link">
-            หน้าแรก
-          </Link>
         </header>
 
         <div className="content-section">
@@ -141,61 +135,63 @@ const StudentListPage = () => {
           </div>
 
           <div className="filter-group" style={{display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16}}>
-            <label>คัดกรองสาขา:</label>
-            <select
+            <TextField
+              select
+              size="small"
+              label="คัดกรองสาขา"
               value={selectedDepartment}
               onChange={(e) => setSelectedDepartment(e.target.value)}
-              style={{padding: '5px 10px', borderRadius: '4px', border: '1px solid #ddd'}}
+              sx={{ minWidth: 280 }}
             >
-              <option value="all">ทั้งหมด</option>
+              <MenuItem value="all">ทั้งหมด</MenuItem>
               {departmentOptions.map((dept) => (
-                <option key={dept} value={dept}>{dept}</option>
+                <MenuItem key={dept} value={dept}>{dept}</MenuItem>
               ))}
-            </select>
+            </TextField>
           </div>
 
-          <div className="requests-table"> {/* Reusing table styles */}
+          <TableContainer component={Box} className="compact-table"> {/* Reusing table styles */}
             {loading ? (
                 <p>กำลังโหลดข้อมูล...</p>
             ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>รหัสนักศึกษา</th>
-                  <th>ชื่อ-นามสกุล</th>
-                  <th>สาขา</th>
-                  <th>อีเมล</th>
-                  <th>เบอร์โทร</th>
-                  <th>สถานะ</th>
-                  <th>การกระทำ</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>รหัสนักศึกษา</TableCell>
+                  <TableCell>ชื่อ-นามสกุล</TableCell>
+                  <TableCell>สาขา</TableCell>
+                  <TableCell>อีเมล</TableCell>
+                  <TableCell>เบอร์โทร</TableCell>
+                  <TableCell>สถานะ</TableCell>
+                  <TableCell>การกระทำ</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {filteredStudents.length > 0 ? filteredStudents.map((student, index) => (
-                    <tr key={index}>
-                      <td>{student.student_code}</td>
-                      <td>{student.full_name}</td>
-                      <td>{student.major || student.department || '-'}</td>
-                      <td>{student.email}</td>
-                      <td>{student.phone}</td>
-                      <td>
+                    <TableRow key={index} hover>
+                      <TableCell>{student.student_code}</TableCell>
+                      <TableCell>{student.full_name}</TableCell>
+                      <TableCell>{student.major || student.department || '-'}</TableCell>
+                      <TableCell>{student.email}</TableCell>
+                      <TableCell>{student.phone}</TableCell>
+                      <TableCell>
                         <span className="status-badge" style={{ background: '#d4edda', color: '#155724' }}>
                           ลงทะเบียนแล้ว
                         </span>
-                      </td>
-                      <td>
+                      </TableCell>
+                      <TableCell>
                         <Link to={`/dashboard/student/${student.student_code || student.username}`} className="btn-view" style={{border: '1px solid #ddd', padding: '6px 10px', borderRadius: 6}}>ดูรายละเอียด</Link>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                 )) : (
-                    <tr>
-                        <td colSpan="7" style={{textAlign: 'center', padding: '20px'}}>ไม่พบข้อมูลนักศึกษา</td>
-                    </tr>
+                    <TableRow>
+                        <TableCell colSpan={7} align="center" sx={{ py: 2.5 }}>ไม่พบข้อมูลนักศึกษา</TableCell>
+                    </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
             )}
-          </div>
+          </TableContainer>
         </div>
       </main>
     </div>

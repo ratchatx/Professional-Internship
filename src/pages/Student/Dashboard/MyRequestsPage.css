@@ -175,27 +175,16 @@
     .requests-table td {
         text-align: center;
         line-height: 1.2;
-        word-break: break-word;
+        word-break: normal;
+        white-space: nowrap;
     }
 
-    .requests-table td:nth-child(1) {
-        width: 24%;
-    }
-
-    .requests-table td:nth-child(2) {
-        width: 22%;
-    }
-
-    .requests-table td:nth-child(3) {
-        width: 24%;
-    }
-
-    .requests-table td:nth-child(4) {
-        width: 20%;
-    }
-
+    .requests-table td:nth-child(1),
+    .requests-table td:nth-child(2),
+    .requests-table td:nth-child(3),
+    .requests-table td:nth-child(4),
     .requests-table td:nth-child(5) {
-        width: 12%;
+        width: auto;
     }
 
     .compact-text {

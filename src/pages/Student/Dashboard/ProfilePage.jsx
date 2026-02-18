@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { TextField, MenuItem, Button, Input } from '@mui/material';
 import asyncStorage from '../../../utils/asyncStorage';
 import './DashboardPage.css'; // Shared dashboard layout
 import './ProfilePage.css';
@@ -63,11 +64,7 @@ const ProfilePage = () => {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleAvatarClick = () => {
-    if (editing) {
-      fileInputRef.current.click();
-    }
-  };
+  const handleAvatarClick = () => {};
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -82,56 +79,85 @@ const ProfilePage = () => {
   };
 
   const handleSave = async () => {
-    const updated = { 
-        ...user, 
-        ...form,
-        full_name: form.name, // Ensure consistency
-        avatar: avatarPreview 
+    const updated = {
+      ...user,
+      email: form.email,
+      phone: form.phone
     };
+
     await asyncStorage.setItem('user', JSON.stringify(updated));
+
+    const usersRaw = await asyncStorage.getItem('users');
+    if (usersRaw) {
+      const allUsers = JSON.parse(usersRaw);
+      const updatedUsers = allUsers.map((storedUser) => {
+        const isSameUser =
+          (user.id && storedUser.id === user.id) ||
+          (user.username && storedUser.username === user.username) ||
+          (user.email && storedUser.email === user.email);
+
+        if (!isSameUser) {
+          return storedUser;
+        }
+
+        return {
+          ...storedUser,
+          email: form.email,
+          phone: form.phone
+        };
+      });
+
+      await asyncStorage.setItem('users', JSON.stringify(updatedUsers));
+    }
+
     setUser(updated);
+    setForm({
+      name: user.full_name || user.name || '',
+      email: form.email,
+      username: user.username || '',
+      phone: form.phone,
+      studentId: user.studentId || '',
+      major: user.major || ''
+    });
     setEditing(false);
   };
 
   const handleLogout = async () => {
     await asyncStorage.removeItem('user');
     setUser(null);
-    navigate('/login');
+    navigate('/');
   };
 
   if (!user) return null; // Or loading spinner
 
   return (
     <div className="dashboard-container">
-      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className="mobile-top-navbar">
+        <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
+        <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      </div>
       <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>🎓 นักศึกษา</h2>
+          <h2>นักศึกษา</h2>
         </div>
         <nav className="sidebar-nav">
           <Link to="/dashboard" className="nav-item">
-            <span className="nav-icon">🏠</span>
             <span>หน้าหลัก</span>
           </Link>
           <Link to="/dashboard/new-request" className="nav-item">
-            <span className="nav-icon">➕</span>
             <span>ยื่นคำร้องใหม่</span>
           </Link>
           <Link to="/dashboard/my-requests" className="nav-item">
-            <span className="nav-icon">📝</span>
             <span>คำร้องของฉัน</span>
           </Link>
           <Link to="/dashboard/payment-proof" className="nav-item">
-            <span className="nav-icon">💰</span>
             <span>หลักฐานการชำระออกฝึก</span>
           </Link>
           <Link to="/dashboard/check-in" className="nav-item">
-            <span className="nav-icon">✅</span>
             <span>เช็คชื่อรายวัน</span>
           </Link>
           <Link to="/dashboard/profile" className="nav-item active">
-            <span className="nav-icon">👤</span>
             <span>โปรไฟล์</span>
           </Link>
         </nav>
@@ -157,7 +183,7 @@ const ProfilePage = () => {
           <div className="profile-layout">
             {/* Left Column: Avatar */}
             <div className="profile-avatar-section">
-                <div className={`avatar-wrapper ${editing ? 'editable' : ''}`} onClick={handleAvatarClick}>
+                <div className="avatar-wrapper" onClick={handleAvatarClick}>
                     {avatarPreview ? (
                         <img src={avatarPreview} alt="Profile" className="avatar-img" />
                     ) : (
@@ -166,18 +192,13 @@ const ProfilePage = () => {
                         </div>
                     )}
                     
-                    {editing && (
-                        <div className="avatar-overlay">
-                            <span>📷 แก้ไขรูป</span>
-                        </div>
-                    )}
                 </div>
-                <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    onChange={handleFileChange} 
-                    style={{ display: 'none' }} 
-                    accept="image/*"
+                <Input
+                  type="file"
+                  inputRef={fileInputRef}
+                  onChange={handleFileChange}
+                  sx={{ display: 'none' }}
+                  inputProps={{ accept: 'image/*' }}
                 />
                 <h3 className="profile-name-display">{user.full_name || user.name || user.username}</h3>
                 <span className="profile-role-badge">นักศึกษา</span>
@@ -188,12 +209,12 @@ const ProfilePage = () => {
                 <div className="section-header-row">
                     <h3>รายละเอียดบัญชี</h3>
                     {!editing ? (
-                        <button className="btn-edit-profile" onClick={() => setEditing(true)}>
-                            ✏️ แก้ไขข้อมูล
-                        </button>
+                      <Button variant="outlined" onClick={() => setEditing(true)}>
+                        แก้ไขข้อมูล
+                      </Button>
                     ) : (
                         <div className="edit-actions">
-                            <button className="btn-cancel-profile" onClick={() => {
+                        <Button variant="text" color="inherit" onClick={() => {
                                 setEditing(false);
                                 // Reset form to original values
                                 setForm({ 
@@ -205,73 +226,79 @@ const ProfilePage = () => {
                                     major: user.major || ''
                                 });
                                 setAvatarPreview(user.avatar || null);
-                            }}>ยกเลิก</button>
-                            <button className="btn-save-profile" onClick={handleSave}>บันทึกการเปลี่ยนแปลง</button>
+                                }}>ยกเลิก</Button>
+                                <Button variant="contained" onClick={handleSave}>บันทึกการเปลี่ยนแปลง</Button>
                         </div>
                     )}
                 </div>
 
                 <div className="profile-fields-grid">
                     <div className="form-group-profile">
-                        <label>รหัสนักศึกษา</label>
-                        <input 
+                              <TextField
+                                fullWidth
+                                label="รหัสนักศึกษา"
                             name="studentId" 
                             value={form.studentId} 
                             onChange={handleChange} 
-                            disabled={!editing}
+                            disabled={true}
                             placeholder="ระบุรหัสนักศึกษา"
-                        />
+                              />
                     </div>
 
                     <div className="form-group-profile">
-                        <label>ชื่อ-นามสกุล</label>
-                        <input 
+                              <TextField
+                                fullWidth
+                                label="ชื่อ-นามสกุล"
                             name="name" 
                             value={form.name} 
                             onChange={handleChange} 
-                            disabled={!editing} 
+                            disabled={true}
                         />
                     </div>
                     
                     <div className="form-group-profile">
-                        <label>สาขาวิชา</label>
-                      <select
-                        name="major"
-                        value={form.major}
-                        onChange={handleChange}
-                        disabled={!editing}
-                      >
-                        <option value="">เลือกสาขา</option>
-                        {departmentOptions.map((dept) => (
-                          <option key={dept} value={dept}>{dept}</option>
-                        ))}
-                      </select>
+                              <TextField
+                              fullWidth
+                              select
+                              label="สาขาวิชา"
+                              name="major"
+                              value={form.major}
+                              onChange={handleChange}
+                              disabled={true}
+                              >
+                              <MenuItem value="">เลือกสาขา</MenuItem>
+                              {departmentOptions.map((dept) => (
+                                <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                              ))}
+                              </TextField>
                     </div>
 
                     <div className="form-group-profile">
-                        <label>ชื่อผู้ใช้ (Username)</label>
-                        <input 
+                              <TextField
+                                fullWidth
+                                label="ชื่อผู้ใช้ (Username)"
                             name="username" 
                             value={form.username} 
                             onChange={handleChange} 
-                            disabled={!editing} 
+                            disabled={true}
                         />
                     </div>
 
                     <div className="form-group-profile">
-                        <label>อีเมล</label>
-                        <input 
+                              <TextField
+                                fullWidth
+                                label="อีเมล"
                             name="email" 
                             value={form.email} 
                             onChange={handleChange} 
-                            disabled={true} 
-                            style={{ cursor: 'not-allowed', backgroundColor: '#f1f5f9' }}
+                            disabled={!editing}
                         />
                     </div>
 
                      <div className="form-group-profile">
-                        <label>เบอร์โทรศัพท์</label>
-                        <input 
+                              <TextField
+                                fullWidth
+                                label="เบอร์โทรศัพท์"
                             name="phone" 
                             value={form.phone} 
                             onChange={handleChange} 

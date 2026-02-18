@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { filterRequestsForCompanyUser, getCompanyDisplayName } from '../../utils/companyRequestFilter';
 import '../Admin/Dashboard/AdminDashboardPage.css'; // Reuse Admin styles
 import '../Admin/Dashboard/StudentListPage.css'; // Reuse Student List styles
 
@@ -8,6 +10,14 @@ const CompanyStudentListPage = () => {
   const [students, setStudents] = useState([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [companyName, setCompanyName] = useState('');
+  const [sortBy, setSortBy] = useState('studentId');
+  const [sortDir, setSortDir] = useState('asc');
+
+  const loadCompanyStudents = (user) => {
+    const storedRequests = JSON.parse(localStorage.getItem('requests') || '[]');
+    const companyRequests = filterRequestsForCompanyUser(storedRequests, user);
+    setStudents(companyRequests);
+  };
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -17,27 +27,41 @@ const CompanyStudentListPage = () => {
          navigate('/login'); 
          return;
       }
-      setCompanyName(user.name);
-      
-      // Load requests and filter for this company
-      const storedRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-      
-      // Filter requests for this company
-      const companyRequests = storedRequests.filter(req => {
-        const reqCompany = req.companyName || req.company || '';
-        return reqCompany.includes(user.name);
-      });
+      setCompanyName(getCompanyDisplayName(user));
+      loadCompanyStudents(user);
 
-      setStudents(companyRequests);
+      const refreshStudents = () => {
+        const latestUserStr = localStorage.getItem('user');
+        if (!latestUserStr) return;
+        const latestUser = JSON.parse(latestUserStr);
+        if (latestUser.role !== 'company') return;
+        loadCompanyStudents(latestUser);
+      };
+
+      const handleVisibility = () => {
+        if (document.visibilityState === 'visible') {
+          refreshStudents();
+        }
+      };
+
+      window.addEventListener('focus', refreshStudents);
+      window.addEventListener('storage', refreshStudents);
+      document.addEventListener('visibilitychange', handleVisibility);
+
+      return () => {
+        window.removeEventListener('focus', refreshStudents);
+        window.removeEventListener('storage', refreshStudents);
+        document.removeEventListener('visibilitychange', handleVisibility);
+      };
 
     } else {
       navigate('/login');
     }
-  }, []);
+  }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    navigate('/login');
+    navigate('/');
   };
 
   const getStatusBadge = (status) => {
@@ -57,22 +81,44 @@ const CompanyStudentListPage = () => {
     );
   };
 
+  const toggleSort = (key) => {
+    if (sortBy === key) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(key);
+      setSortDir('asc');
+    }
+  };
+
+  const sortedStudents = [...students].sort((a, b) => {
+    const va = (a?.[sortBy] ?? '').toString();
+    const vb = (b?.[sortBy] ?? '').toString();
+    if (!isNaN(Number(va)) && !isNaN(Number(vb))) {
+      return sortDir === 'asc' ? Number(va) - Number(vb) : Number(vb) - Number(va);
+    }
+    return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+
   return (
     <div className="admin-dashboard-container">
-      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className="mobile-top-navbar">
+        <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
+        <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      </div>
       <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>🏢 สถานประกอบการ</h2>
+          <h2>สถานประกอบการ</h2>
         </div>
         <nav className="sidebar-nav">
           <Link to="/company-dashboard" className="nav-item">
-            <span className="nav-icon">🏠</span>
             <span>หน้าหลัก</span>
           </Link>
           <Link to="/company-dashboard/interns" className="nav-item active">
-            <span className="nav-icon">👥</span>
             <span>รายชื่อนักศึกษาฝึกงาน</span>
+          </Link>
+          <Link to="/company-dashboard/profile" className="nav-item">
+            <span>โปรไฟล์</span>
           </Link>
         </nav>
         <div className="sidebar-footer">
@@ -91,51 +137,53 @@ const CompanyStudentListPage = () => {
         </header>
 
         <div className="content-card">
-          <div className="table-responsive">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>รหัสนักศึกษา</th>
-                  <th>ชื่อ-นามสกุล</th>
-                  <th>สาขาวิชา</th>
-                  <th>ตำแหน่ง</th>
-                  <th>ช่วงเวลาฝึกงาน</th>
-                  <th>สถานะ</th>
-                  <th>การจัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.length > 0 ? (
-                  students.map((req, index) => (
-                    <tr key={req.id || index}>
-                      <td data-label="รหัสนักศึกษา">{req.studentId}</td>
-                      <td data-label="ชื่อ-นามสกุล">
-                        <div className="user-info">
-                          <div className="user-details">
-                            <span className="user-name">{req.studentName}</span>
-                            <span className="user-email">{req.studentEmail}</span>
+          <Paper elevation={0} style={{background: 'linear-gradient(90deg, #f6d36510 0%, #fda08510 100%)', borderRadius: 10, padding: '0.5rem', boxShadow: 'none', border: 'none'}}>
+            <TableContainer component={Box} className="compact-table" sx={{ overflowX: 'auto' }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell className="sortable" onClick={() => toggleSort('studentId')}>รหัสนักศึกษา {sortBy === 'studentId' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</TableCell>
+                    <TableCell className="sortable" onClick={() => toggleSort('studentName')}>ชื่อ-นามสกุล {sortBy === 'studentName' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</TableCell>
+                    <TableCell className="sortable" onClick={() => toggleSort('studentMajor')}>สาขาวิชา {sortBy === 'studentMajor' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</TableCell>
+                    <TableCell className="sortable" onClick={() => toggleSort('position')}>ตำแหน่ง {sortBy === 'position' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</TableCell>
+                    <TableCell>ช่วงเวลาฝึกงาน</TableCell>
+                    <TableCell className="sortable" onClick={() => toggleSort('status')}>สถานะ {sortBy === 'status' ? (sortDir === 'asc' ? '▲' : '▼') : ''}</TableCell>
+                    <TableCell>การจัดการ</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sortedStudents.length > 0 ? (
+                    sortedStudents.map((req, index) => (
+                      <TableRow key={req.id || index} hover>
+                        <TableCell>{req.studentId}</TableCell>
+                        <TableCell>
+                          <div className="user-info">
+                            <div className="user-details">
+                              <span className="user-name">{req.studentName}</span>
+                              <span className="user-email">{req.studentEmail}</span>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td data-label="สาขาวิชา">{req.studentMajor}</td>
-                      <td data-label="ตำแหน่ง">{req.position}</td>
-                      <td data-label="ช่วงเวลาฝึกงาน">{req.startDate} - {req.endDate}</td>
-                      <td data-label="สถานะ">{getStatusBadge(req.status)}</td>
-                      <td data-label="การจัดการ">
-                        <Link to={`/dashboard/request/${req.id}`} className="view-btn">
-                          ดูรายละเอียด
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="7" className="text-center">ไม่พบข้อมูลนักศึกษาฝึกงาน</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                        </TableCell>
+                        <TableCell>{req.studentMajor}</TableCell>
+                        <TableCell>{req.position}</TableCell>
+                        <TableCell>{req.startDate} - {req.endDate}</TableCell>
+                        <TableCell>{getStatusBadge(req.status)}</TableCell>
+                        <TableCell>
+                          <Link to={`/dashboard/request/${req.id}`} className="view-btn">
+                            ดูรายละเอียด
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">ไม่พบข้อมูลนักศึกษาฝึกงาน</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
         </div>
       </main>
     </div>

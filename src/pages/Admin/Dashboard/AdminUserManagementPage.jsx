@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import asyncStorage from '../../../utils/asyncStorage';
 import * as XLSX from 'xlsx';
+import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, MenuItem, Button, Dialog, DialogTitle, DialogContent, DialogActions, Input } from '@mui/material';
 import './AdminDashboardPage.css';
 import './AdminUserManagementPage.css';
 
@@ -82,7 +83,7 @@ const AdminUserManagementPage = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    navigate('/login');
+    navigate('/');
   };
 
   const handleOpenModal = (user = null) => {
@@ -123,6 +124,11 @@ const AdminUserManagementPage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === 'role' && editingUser && (editingUser.role === 'student' || editingUser.role === 'advisor')) {
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -297,6 +303,9 @@ const AdminUserManagementPage = () => {
     let updatedUsers = [...users];
 
     if (editingUser) {
+      const lockedRole = editingUser.role === 'student' || editingUser.role === 'advisor';
+      const nextRole = lockedRole ? editingUser.role : formData.role;
+
       // Update
       updatedUsers = updatedUsers.map(u => 
         u.id === editingUser.id ? { 
@@ -304,7 +313,7 @@ const AdminUserManagementPage = () => {
           username: formData.username,
           password: formData.password || u.password,
           name: formData.name,
-          role: formData.role,
+          role: nextRole,
           studentId: formData.studentId,
           department: formData.department,
           address: formData.address,
@@ -344,11 +353,17 @@ const AdminUserManagementPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (confirm('คุณแน่ใจหรือไม่ว่าจะลบผู้ใช้นี้?')) {
-      const updatedUsers = users.filter(u => u.id !== id);
-      setUsers(updatedUsers);
-      await asyncStorage.setItem('users', JSON.stringify(updatedUsers));
-    }
+    const confirmed = await window.showMuiConfirm('คุณแน่ใจหรือไม่ว่าจะลบผู้ใช้นี้?', {
+      title: 'ยืนยันการลบผู้ใช้',
+      confirmText: 'ลบผู้ใช้',
+      cancelText: 'ยกเลิก',
+    });
+
+    if (!confirmed) return;
+
+    const updatedUsers = users.filter(u => u.id !== id);
+    setUsers(updatedUsers);
+    await asyncStorage.setItem('users', JSON.stringify(updatedUsers));
   };
 
   const getRoleBadge = (role) => {
@@ -371,39 +386,35 @@ const AdminUserManagementPage = () => {
 
   return (
     <div className="admin-dashboard-container">
-      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className="mobile-top-navbar">
+        <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
+        <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      </div>
       <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>👨‍💼 ผู้ดูแลระบบ</h2>
+          <h2> ผู้ดูแลระบบ</h2>
         </div>
         <nav className="sidebar-nav">
           <Link to="/admin-dashboard" className="nav-item">
-            <span className="nav-icon">🏠</span>
             <span>หน้าหลัก</span>
           </Link>
           <Link to="/admin-dashboard/students" className="nav-item">
-            <span className="nav-icon">👥</span>
             <span>นักศึกษา</span>
           </Link>
           <Link to="/admin-dashboard/users" className="nav-item active">
-            <span className="nav-icon">⚙️</span>
             <span>จัดการผู้ใช้</span>
           </Link>
           <Link to="/admin-dashboard/payments" className="nav-item">
-            <span className="nav-icon">💰</span>
             <span>ตรวจสอบการชำระเงิน</span>
           </Link>
           <Link to="/admin-dashboard/checkins" className="nav-item">
-            <span className="nav-icon">✅</span>
             <span>เช็คชื่อรายวัน</span>
           </Link>
           <Link to="/admin-dashboard/reports" className="nav-item">
-            <span className="nav-icon">📊</span>
             <span>รายงาน</span>
           </Link>
           <Link to="/admin-dashboard/profile" className="nav-item">
-            <span className="nav-icon">👤</span>
             <span>โปรไฟล์</span>
           </Link>
         </nav>
@@ -434,9 +445,9 @@ const AdminUserManagementPage = () => {
 
             <div className="bulk-upload">
               <label className="bulk-upload-label">อัปโหลดไฟล์ Excel/CSV</label>
-              <input
+              <Input
                 type="file"
-                accept=".xlsx,.xls,.csv"
+                inputProps={{ accept: '.xlsx,.xls,.csv' }}
                 onChange={handleImportFileChange}
                 disabled={isUploading}
               />
@@ -456,38 +467,38 @@ const AdminUserManagementPage = () => {
 
             {importRows.length > 0 && (
               <>
-                <div className="bulk-table-wrapper">
-                  <table className="bulk-table">
-                    <thead>
-                      <tr>
-                        <th>Username/Email</th>
-                        <th>ชื่อ-นามสกุล</th>
-                        <th>Role</th>
-                        <th>รหัสนักศึกษา</th>
-                        <th>สาขา</th>
-                        <th>ผู้ติดต่อ</th>
-                        <th>เบอร์โทร</th>
-                        <th>ที่อยู่</th>
-                        <th>รหัสผ่าน</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <TableContainer className="bulk-table-wrapper">
+                  <Table size="small" className="bulk-table" stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Username/Email</TableCell>
+                        <TableCell>ชื่อ-นามสกุล</TableCell>
+                        <TableCell>Role</TableCell>
+                        <TableCell>รหัสนักศึกษา</TableCell>
+                        <TableCell>สาขา</TableCell>
+                        <TableCell>ผู้ติดต่อ</TableCell>
+                        <TableCell>เบอร์โทร</TableCell>
+                        <TableCell>ที่อยู่</TableCell>
+                        <TableCell>รหัสผ่าน</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
                       {importRows.map((row, index) => (
-                        <tr key={`import-${index}`}>
-                          <td>{row.username}</td>
-                          <td>{row.name}</td>
-                          <td>{row.role}</td>
-                          <td>{row.studentId}</td>
-                          <td>{row.department}</td>
-                          <td>{row.contactPerson}</td>
-                          <td>{row.phone}</td>
-                          <td>{row.address}</td>
-                          <td>{row.password}</td>
-                        </tr>
+                        <TableRow key={`import-${index}`} hover>
+                          <TableCell>{row.username}</TableCell>
+                          <TableCell>{row.name}</TableCell>
+                          <TableCell>{row.role}</TableCell>
+                          <TableCell>{row.studentId}</TableCell>
+                          <TableCell>{row.department}</TableCell>
+                          <TableCell>{row.contactPerson}</TableCell>
+                          <TableCell>{row.phone}</TableCell>
+                          <TableCell>{row.address}</TableCell>
+                          <TableCell>{row.password}</TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
+                    </TableBody>
+                  </Table>
+                </TableContainer>
 
                 <div className="bulk-actions">
                   <button type="button" className="btn-secondary" onClick={handleClearImport}>
@@ -501,43 +512,45 @@ const AdminUserManagementPage = () => {
             )}
           </div>
 
-          <div className="user-management-actions" style={{justifyContent: 'space-between', alignItems: 'center'}}>
-             <div className="filter-group" style={{display: 'flex', gap: 10, alignItems: 'center'}}>
-                <label>คัดกรองสาขา:</label>
-                <select 
+           <div className="user-management-actions">
+             <div className="filter-group">
+              <TextField
+                select
+                size="small"
+                label="คัดกรองสาขา"
                     value={selectedDepartment} 
                     onChange={(e) => setSelectedDepartment(e.target.value)}
-                    style={{padding: '5px 10px', borderRadius: '4px', border: '1px solid #ddd'}}
+                sx={{ minWidth: 280 }}
                 >
-                    <option value="all">ทั้งหมด</option>
+                <MenuItem value="all">ทั้งหมด</MenuItem>
                     {departments.map((dept, idx) => (
-                        <option key={idx} value={dept}>{dept}</option>
+                  <MenuItem key={idx} value={dept}>{dept}</MenuItem>
                     ))}
-                </select>
+              </TextField>
              </div>
-            <button className="btn-add-user" onClick={() => handleOpenModal()}>
+            <Button variant="contained" className="btn-add-user" onClick={() => handleOpenModal()}>
               <span>+</span> เพิ่มผู้ใช้ใหม่
-            </button>
+            </Button>
           </div>
 
-          <div className="users-table-container">
-            <table className="users-table">
-              <thead>
-                <tr>
-                  <th>ชื่อผู้ใช้/Email</th>
-                  <th>ชื่อ-นามสกุล</th>
-                  <th>บทบาท</th>
-                  <th>รายละเอียดเพิ่มเติม</th>
-                  <th>จัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableContainer className="users-table-container">
+            <Table size="small" className="users-table" stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell>ชื่อผู้ใช้/Email</TableCell>
+                  <TableCell>ชื่อ-นามสกุล</TableCell>
+                  <TableCell>บทบาท</TableCell>
+                  <TableCell>รายละเอียดเพิ่มเติม</TableCell>
+                  <TableCell>จัดการ</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {filteredUsers.map(user => (
-                  <tr key={user.id}>
-                    <td>{user.username || user.email}</td>
-                    <td>{user.name || user.full_name}</td>
-                    <td>{getRoleBadge(user.role)}</td>
-                    <td>
+                  <TableRow key={user.id} hover>
+                    <TableCell>{user.username || user.email}</TableCell>
+                    <TableCell>{user.name || user.full_name}</TableCell>
+                    <TableCell>{getRoleBadge(user.role)}</TableCell>
+                    <TableCell>
                       {user.role === 'student' && user.studentId && <div>รหัส: {user.studentId}</div>}
                       {user.department && <div style={{fontSize: '0.85em', color: '#666'}}>สาขา: {user.department}</div>}
                       {user.role === 'company' && (
@@ -546,142 +559,158 @@ const AdminUserManagementPage = () => {
                            {user.phone && <div style={{fontSize: '0.85em', color: '#666'}}>โทร: {user.phone}</div>}
                         </>
                       )}
-                    </td>
-                    <td>
-                      <button className="btn-edit-user" onClick={() => handleOpenModal(user)}>แก้ไข</button>
-                      <button className="btn-delete-user" onClick={() => handleDelete(user.id)}>ลบ</button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell>
+                      <div className="user-row-actions">
+                        <Button size="small" variant="outlined" className="btn-edit-user" onClick={() => handleOpenModal(user)}>แก้ไข</Button>
+                        <Button size="small" color="error" variant="outlined" className="btn-delete-user" onClick={() => handleDelete(user.id)}>ลบ</Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ))}
                 {filteredUsers.length === 0 && (
-                  <tr>
-                    <td colSpan="5" style={{textAlign: 'center', padding: '20px'}}>ไม่พบข้อมูลผู้ใช้</td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={5} align="center" sx={{ py: 2.5 }}>ไม่พบข้อมูลผู้ใช้</TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </TableContainer>
         </div>
       </main>
 
       {/* Modal */}
-      {isModalOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2>{editingUser ? 'แก้ไขข้อมูลผู้ใช้' : 'เพิ่มผู้ใช้ใหม่'}</h2>
-              <button className="close-btn" onClick={handleCloseModal}>&times;</button>
-            </div>
-            <form onSubmit={handleSubmit} className="user-form">
-              <div className="form-group">
-                <label>ชื่อผู้ใช้ (Username/Email)</label>
-                <input 
-                  type="text" 
-                  name="username" 
-                  value={formData.username} 
-                  onChange={handleInputChange} 
-                  required 
+      <Dialog open={isModalOpen} onClose={handleCloseModal} fullWidth maxWidth="md">
+        <DialogTitle>{editingUser ? 'แก้ไขข้อมูลผู้ใช้' : 'เพิ่มผู้ใช้ใหม่'}</DialogTitle>
+        <DialogContent dividers>
+          <Box
+            component="form"
+            onSubmit={handleSubmit}
+            className="user-form"
+            id="user-form"
+            sx={{
+              mt: 0.5,
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+              gap: 1.5,
+            }}
+          >
+            <TextField
+              fullWidth
+              size="small"
+              label="ชื่อผู้ใช้ (Username/Email)"
+              name="username"
+              value={formData.username}
+              onChange={handleInputChange}
+              required
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              type="password"
+              label="รหัสผ่าน (Password)"
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              helperText={editingUser ? 'เว้นว่างหากไม่ต้องการเปลี่ยน' : 'หากไม่กรอกจะใช้ค่าเริ่มต้น'}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label={formData.role === 'company' ? 'ชื่อบริษัท' : 'ชื่อ-นามสกุล'}
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+            />
+
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="บทบาท (Role)"
+              name="role"
+              value={formData.role}
+              onChange={handleInputChange}
+              disabled={Boolean(editingUser && (editingUser.role === 'student' || editingUser.role === 'advisor'))}
+              helperText={editingUser && (editingUser.role === 'student' || editingUser.role === 'advisor') ? 'บัญชีนักศึกษาและอาจารย์ไม่สามารถเปลี่ยนบทบาทได้' : ''}
+            >
+              <MenuItem value="student">นักศึกษา</MenuItem>
+              <MenuItem value="advisor">อาจารย์ที่ปรึกษา</MenuItem>
+              <MenuItem value="company">บริษัท</MenuItem>
+              <MenuItem value="admin">ผู้ดูแลระบบ</MenuItem>
+            </TextField>
+
+            {formData.role === 'student' && (
+              <TextField
+                fullWidth
+                size="small"
+                label="รหัสนักศึกษา"
+                name="studentId"
+                value={formData.studentId}
+                onChange={handleInputChange}
+              />
+            )}
+
+            {(formData.role === 'student' || formData.role === 'advisor') && (
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="สาขาวิชา"
+                name="department"
+                value={formData.department}
+                onChange={handleInputChange}
+              >
+                <MenuItem value="">เลือกสาขา</MenuItem>
+                {departmentOptions.map((dept) => (
+                  <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                ))}
+              </TextField>
+            )}
+
+            {formData.role === 'company' && (
+              <>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="ชื่อผู้ติดต่อ"
+                  name="contactPerson"
+                  value={formData.contactPerson}
+                  onChange={handleInputChange}
                 />
-              </div>
-              <div className="form-group">
-                <label>รหัสผ่าน (Password)</label>
-                <input 
-                  type="password" 
-                  name="password" 
-                  value={formData.password} 
-                  onChange={handleInputChange} 
-                  placeholder={editingUser ? 'เว้นว่างหากไม่ต้องการเปลี่ยน' : ''}
+
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="เบอร์โทรศัพท์"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
                 />
-              </div>
-              <div className="form-group">
-                <label>{formData.role === 'company' ? 'ชื่อบริษัท' : 'ชื่อ-นามสกุล'}</label>
-                <input 
-                  type="text" 
-                  name="name" 
-                  value={formData.name} 
-                  onChange={handleInputChange} 
-                  required 
+
+                <TextField
+                  fullWidth
+                  size="small"
+                  multiline
+                  rows={3}
+                  label="ที่อยู่บริษัท"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  sx={{ gridColumn: '1 / -1' }}
                 />
-              </div>
-              <div className="form-group">
-                <label>บทบาท (Role)</label>
-                <select name="role" value={formData.role} onChange={handleInputChange}>
-                  <option value="student">นักศึกษา</option>
-                  <option value="advisor">อาจารย์ที่ปรึกษา</option>
-                  <option value="company">บริษัท</option>
-                  <option value="admin">ผู้ดูแลระบบ</option>
-                </select>
-              </div>
-
-              {formData.role === 'student' && (
-                <div className="form-group">
-                  <label>รหัสนักศึกษา</label>
-                  <input 
-                    type="text" 
-                    name="studentId" 
-                    value={formData.studentId} 
-                    onChange={handleInputChange} 
-                  />
-                </div>
-              )}
-
-              {(formData.role === 'student' || formData.role === 'advisor') && (
-                <div className="form-group">
-                  <label>สาขาวิชา</label>
-                  <select
-                    name="department"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                  >
-                    <option value="">เลือกสาขา</option>
-                    {departmentOptions.map((dept) => (
-                      <option key={dept} value={dept}>{dept}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {formData.role === 'company' && (
-                <>
-                  <div className="form-group">
-                    <label>ชื่อผู้ติดต่อ</label>
-                    <input 
-                      type="text" 
-                      name="contactPerson" 
-                      value={formData.contactPerson} 
-                      onChange={handleInputChange} 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>เบอร์โทรศัพท์</label>
-                    <input 
-                      type="text" 
-                      name="phone" 
-                      value={formData.phone} 
-                      onChange={handleInputChange} 
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>ที่อยู่บริษัท</label>
-                    <textarea 
-                      name="address" 
-                      value={formData.address} 
-                      onChange={handleInputChange} 
-                      rows="3"
-                      style={{width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd'}}
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="form-actions">
-                <button type="button" className="btn-cancel" onClick={handleCloseModal}>ยกเลิก</button>
-                <button type="submit" className="btn-submit">บันทึก</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+              </>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 1.5 }}>
+          <Button type="button" onClick={handleCloseModal}>ยกเลิก</Button>
+          <Button type="submit" form="user-form" variant="contained">บันทึก</Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

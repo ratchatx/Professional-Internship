@@ -6,6 +6,7 @@ import ProfilePage from './pages/Student/Dashboard/ProfilePage';
 import MyRequestsPage from './pages/Student/Dashboard/MyRequestsPage';
 import AdvisorDashboardPage from './pages/Advisor/AdvisorDashboardPage';
 import CompanyDashboardPage from './pages/Company/CompanyDashboardPage';
+import CompanyProfilePage from './pages/Company/CompanyProfilePage';
 import NewRequestPage from './pages/Student/NewRequestPage';
 import AdminDashboardPage from './pages/Admin/Dashboard/AdminDashboardPage';
 import StudentListPage from './pages/Admin/Dashboard/StudentListPage';
@@ -16,6 +17,7 @@ import AdminUserManagementPage from './pages/Admin/Dashboard/AdminUserManagement
 import AdminProfilePage from './pages/Admin/Dashboard/AdminProfilePage';
 import AdvisorStudentListPage from './pages/Advisor/AdvisorStudentListPage';
 import AdvisorSupervisionPage from './pages/Advisor/AdvisorSupervisionPage';
+import AdvisorProgressCheckPage from './pages/Advisor/AdvisorProgressCheckPage';
 import CompanyStudentListPage from './pages/Company/CompanyStudentListPage';
 import RequestDetailsPage from './pages/Admin/Shared/RequestDetailsPage';
 import StudentDetailsPage from './pages/Admin/Shared/StudentDetailsPage';
@@ -47,8 +49,10 @@ function App() {
         <Route path="/advisor-dashboard" element={<AdvisorDashboardPage />} />
         <Route path="/advisor-dashboard/students" element={<AdvisorStudentListPage />} />
         <Route path="/advisor-dashboard/supervision" element={<AdvisorSupervisionPage />} />
+        <Route path="/advisor-dashboard/progress" element={<AdvisorProgressCheckPage />} />
         <Route path="/company-dashboard" element={<CompanyDashboardPage />} />
         <Route path="/company-dashboard/interns" element={<CompanyStudentListPage />} />
+        <Route path="/company-dashboard/profile" element={<CompanyProfilePage />} />
       </Routes>
     </Router>
   );

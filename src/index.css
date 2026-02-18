@@ -20,13 +20,13 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Kanit', 'Sarabun', 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  overflow-y: scroll;
   overflow-x: hidden;
+  scrollbar-gutter: stable;
   background: var(--bg);
   color: var(--text);
 }
@@ -81,4 +81,54 @@ svg {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Global overflow guards */
+.admin-main,
+.dashboard-main,
+.content-section,
+.content-wrapper,
+.table-container,
+.table-responsive,
+.requests-table,
+.users-table-container,
+.bulk-table-wrapper,
+.checkin-table-container,
+.compact-table,
+.MuiPaper-root {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.MuiTableContainer-root,
+.table-container,
+.table-responsive,
+.requests-table,
+.users-table-container,
+.bulk-table-wrapper,
+.checkin-table-container,
+.compact-table {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.MuiTable-root {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.MuiTableCell-root {
+  white-space: nowrap;
+}
+
+.action-buttons,
+.advisor-action-buttons {
+  flex-wrap: nowrap;
+}
+
+.status-badge,
+.checkin-status {
+  white-space: nowrap;
 }

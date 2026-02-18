@@ -18,6 +18,21 @@
   width: auto;
   margin-left: 0.5rem;
 }
+
+/* Navbar site title styling when shown next to logo */
+.site-title {
+  display: flex;
+  flex-direction: column;
+}
+.site-title .title-main {
+  font-weight: 800;
+  color: #111111;
+}
+.site-title .title-sub {
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 600;
+}
 .nav-menu {
   justify-self: center;
   display: flex;
@@ -191,6 +206,27 @@
   text-align: center;
 }
 
+/* Hero banner background is applied inline from HomePage.jsx using src/assets/Banner.jpg */
+.hero-section {
+  background-color: #ffffff;
+  position: relative;
+}
+
+/* dim overlay so text is readable */
+.hero-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(255,255,255,0.65), rgba(255,255,255,0.65));
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 980px;
+}
+
 .hero-content {
   max-width: 760px;
   margin: 0 auto;
@@ -278,6 +314,15 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
+.feature-card img,
+.feature-card > .MuiBox-root[component="img"] {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
 .feature-icon {
   font-size: 3rem;
   margin-bottom: 1rem;
@@ -292,6 +337,13 @@
 .feature-card p {
   color: #333333;
   line-height: 1.6;
+}
+
+.catalog-source {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
 }
 
 /* Footer */

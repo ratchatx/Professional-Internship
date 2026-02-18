@@ -1,5 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  MenuItem,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
 import './AdminDashboardPage.css';
 import '../Shared/CheckInPage.css';
 
@@ -8,7 +23,58 @@ const AdminCheckInPage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [adminName, setAdminName] = useState('');
   const [entries, setEntries] = useState([]);
-  const [filters, setFilters] = useState({ date: '', status: 'all', search: '' });
+  const [filters, setFilters] = useState({ date: '', status: 'all', search: '', department: 'all' });
+  const [departmentMap, setDepartmentMap] = useState({});
+  const [departmentOptions, setDepartmentOptions] = useState([]);
+  const [editDialog, setEditDialog] = useState({
+    open: false,
+    target: null,
+    date: '',
+    status: 'present',
+    note: ''
+  });
+
+  const sortEntriesByDateDesc = (list) => {
+    return [...list].sort((a, b) => {
+      const byDate = String(b.date || '').localeCompare(String(a.date || ''));
+      if (byDate !== 0) return byDate;
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+  };
+
+  const buildDepartmentMap = () => {
+    const map = {};
+    const users = JSON.parse(localStorage.getItem('users') || '[]');
+    const requests = JSON.parse(localStorage.getItem('requests') || '[]');
+
+    users
+      .filter((user) => user.role === 'student')
+      .forEach((student) => {
+        const dept = student.department || student.major || '';
+        if (!dept) return;
+        [student.student_code, student.studentId, student.username, student.email]
+          .filter(Boolean)
+          .forEach((key) => {
+            map[String(key)] = dept;
+          });
+      });
+
+    requests.forEach((request) => {
+      const dept = request.department || request.details?.student_info?.major || '';
+      if (!dept) return;
+      [request.studentId, request.student_code, request.username, request.email]
+        .filter(Boolean)
+        .forEach((key) => {
+          if (!map[String(key)]) {
+            map[String(key)] = dept;
+          }
+        });
+    });
+
+    const departments = Array.from(new Set(Object.values(map))).sort((a, b) => a.localeCompare(b, 'th-TH'));
+    setDepartmentMap(map);
+    setDepartmentOptions(departments);
+  };
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
@@ -25,13 +91,13 @@ const AdminCheckInPage = () => {
 
     setAdminName(user.name || 'Admin');
     const stored = JSON.parse(localStorage.getItem('daily_checkins') || '[]');
-    stored.sort((a, b) => b.date.localeCompare(a.date));
-    setEntries(stored);
+    setEntries(sortEntriesByDateDesc(stored));
+    buildDepartmentMap();
   }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    navigate('/login');
+    navigate('/');
   };
 
   const statusLabel = useMemo(() => {
@@ -42,9 +108,14 @@ const AdminCheckInPage = () => {
     };
   }, []);
 
+  const getDepartment = (entry) => {
+    return departmentMap[String(entry.studentId || '')] || 'ไม่ระบุ';
+  };
+
   const filteredEntries = entries.filter((entry) => {
     if (filters.date && entry.date !== filters.date) return false;
     if (filters.status !== 'all' && entry.status !== filters.status) return false;
+    if (filters.department !== 'all' && getDepartment(entry) !== filters.department) return false;
     if (filters.search) {
       const term = filters.search.toLowerCase();
       const name = (entry.studentName || '').toLowerCase();
@@ -54,41 +125,108 @@ const AdminCheckInPage = () => {
     return true;
   });
 
+  const isSameEntry = (left, right) => {
+    if (!left || !right) return false;
+    return (
+      String(left.id) === String(right.id) &&
+      String(left.studentId) === String(right.studentId) &&
+      String(left.date) === String(right.date) &&
+      String(left.createdAt || '') === String(right.createdAt || '')
+    );
+  };
+
+  const handleOpenEdit = (entry) => {
+    setEditDialog({
+      open: true,
+      target: entry,
+      date: entry.date || '',
+      status: entry.status || 'present',
+      note: entry.note || ''
+    });
+  };
+
+  const handleCloseEdit = () => {
+    setEditDialog({ open: false, target: null, date: '', status: 'present', note: '' });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editDialog.target) return;
+    if (!editDialog.date) {
+      alert('กรุณาระบุวันที่');
+      return;
+    }
+
+    const hasDuplicateDate = entries.some((entry) => {
+      if (isSameEntry(entry, editDialog.target)) return false;
+      return String(entry.studentId) === String(editDialog.target.studentId) && String(entry.date) === String(editDialog.date);
+    });
+
+    if (hasDuplicateDate) {
+      alert('นักศึกษาคนนี้มีรายการเช็คชื่อในวันที่นี้แล้ว');
+      return;
+    }
+
+    const updated = entries.map((entry) => {
+      if (!isSameEntry(entry, editDialog.target)) return entry;
+      return {
+        ...entry,
+        date: editDialog.date,
+        status: editDialog.status,
+        note: editDialog.note,
+        updatedAt: new Date().toISOString()
+      };
+    });
+
+    const sorted = sortEntriesByDateDesc(updated);
+    setEntries(sorted);
+    localStorage.setItem('daily_checkins', JSON.stringify(sorted));
+    handleCloseEdit();
+  };
+
+  const handleDelete = async (entry) => {
+    const confirmed = await window.showMuiConfirm('ยืนยันการลบรายการเช็คชื่อนี้?', {
+      title: 'ยืนยันการลบ',
+      confirmText: 'ลบรายการ',
+      cancelText: 'ยกเลิก',
+    });
+
+    if (!confirmed) return;
+    const updated = entries.filter((item) => !isSameEntry(item, entry));
+    setEntries(updated);
+    localStorage.setItem('daily_checkins', JSON.stringify(updated));
+  };
+
   return (
     <div className="admin-dashboard-container">
-      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className="mobile-top-navbar">
+        <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
+        <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      </div>
       <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>👨‍💼 ผู้ดูแลระบบ</h2>
+          <h2> ผู้ดูแลระบบ</h2>
         </div>
         <nav className="sidebar-nav">
           <Link to="/admin-dashboard" className="nav-item">
-            <span className="nav-icon">🏠</span>
             <span>หน้าหลัก</span>
           </Link>
           <Link to="/admin-dashboard/students" className="nav-item">
-            <span className="nav-icon">👥</span>
             <span>นักศึกษา</span>
           </Link>
           <Link to="/admin-dashboard/users" className="nav-item">
-            <span className="nav-icon">⚙️</span>
             <span>จัดการผู้ใช้</span>
           </Link>
           <Link to="/admin-dashboard/payments" className="nav-item">
-            <span className="nav-icon">💰</span>
             <span>ตรวจสอบการชำระเงิน</span>
           </Link>
           <Link to="/admin-dashboard/checkins" className="nav-item active">
-            <span className="nav-icon">✅</span>
             <span>เช็คชื่อรายวัน</span>
           </Link>
           <Link to="/admin-dashboard/reports" className="nav-item">
-            <span className="nav-icon">📊</span>
             <span>รายงาน</span>
           </Link>
           <Link to="/admin-dashboard/profile" className="nav-item">
-            <span className="nav-icon">👤</span>
             <span>โปรไฟล์</span>
           </Link>
         </nav>
@@ -113,32 +251,51 @@ const AdminCheckInPage = () => {
         <div className="content-section">
           <div className="checkin-filters">
             <div className="checkin-field">
-              <label htmlFor="filter-date">วันที่</label>
-              <input
-                id="filter-date"
+              <TextField
+                fullWidth
+                size="small"
+                label="วันที่"
                 type="date"
                 value={filters.date}
                 onChange={(event) => setFilters({ ...filters, date: event.target.value })}
+                InputLabelProps={{ shrink: true }}
               />
             </div>
             <div className="checkin-field">
-              <label htmlFor="filter-status">สถานะ</label>
-              <select
-                id="filter-status"
+              <TextField
+                fullWidth
+                size="small"
+                label="สถานะ"
+                select
                 value={filters.status}
                 onChange={(event) => setFilters({ ...filters, status: event.target.value })}
               >
-                <option value="all">ทั้งหมด</option>
-                <option value="present">มา</option>
-                <option value="late">สาย</option>
-                <option value="absent">ขาด</option>
-              </select>
+                <MenuItem value="all">ทั้งหมด</MenuItem>
+                <MenuItem value="present">มา</MenuItem>
+                <MenuItem value="late">สาย</MenuItem>
+                <MenuItem value="absent">ขาด</MenuItem>
+              </TextField>
+            </div>
+            <div className="checkin-field">
+              <TextField
+                fullWidth
+                size="small"
+                label="สาขา"
+                select
+                value={filters.department}
+                onChange={(event) => setFilters({ ...filters, department: event.target.value })}
+              >
+                <MenuItem value="all">ทั้งหมด</MenuItem>
+                {departmentOptions.map((department) => (
+                  <MenuItem key={department} value={department}>{department}</MenuItem>
+                ))}
+              </TextField>
             </div>
             <div className="checkin-field" style={{ flex: 1 }}>
-              <label htmlFor="filter-search">ค้นหา</label>
-              <input
-                id="filter-search"
-                type="text"
+              <TextField
+                fullWidth
+                size="small"
+                label="ค้นหา"
                 placeholder="ชื่อหรือรหัสนักศึกษา"
                 value={filters.search}
                 onChange={(event) => setFilters({ ...filters, search: event.target.value })}
@@ -146,44 +303,92 @@ const AdminCheckInPage = () => {
             </div>
           </div>
 
-          <div className="checkin-table-container">
-            <table className="checkin-table">
-              <thead>
-                <tr>
-                  <th>วันที่</th>
-                  <th>รหัสนักศึกษา</th>
-                  <th>ชื่อ-นามสกุล</th>
-                  <th>สถานะ</th>
-                  <th>กิจกรรมที่ทำในวันนี้</th>
-                  <th>เวลาเช็ค</th>
-                </tr>
-              </thead>
-              <tbody>
+          <TableContainer className="checkin-table-container">
+            <Table size="small" className="checkin-table" stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell>วันที่</TableCell>
+                  <TableCell>รหัสนักศึกษา</TableCell>
+                  <TableCell>ชื่อ-นามสกุล</TableCell>
+                  <TableCell>สาขา</TableCell>
+                  <TableCell>สถานะ</TableCell>
+                  <TableCell>กิจกรรมที่ทำในวันนี้</TableCell>
+                  <TableCell>เวลาเช็ค</TableCell>
+                  <TableCell>จัดการ</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {filteredEntries.length === 0 ? (
-                  <tr>
-                    <td colSpan="6">ยังไม่มีข้อมูลการเช็คชื่อ</td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={8}>ยังไม่มีข้อมูลการเช็คชื่อ</TableCell>
+                  </TableRow>
                 ) : (
                   filteredEntries.map((entry) => (
-                    <tr key={`${entry.id}-${entry.date}`}>
-                      <td>{entry.date}</td>
-                      <td>{entry.studentId}</td>
-                      <td>{entry.studentName}</td>
-                      <td>
+                    <TableRow key={`${entry.id}-${entry.date}`} hover>
+                      <TableCell>{entry.date}</TableCell>
+                      <TableCell>{entry.studentId}</TableCell>
+                      <TableCell>{entry.studentName}</TableCell>
+                      <TableCell>{getDepartment(entry)}</TableCell>
+                      <TableCell>
                         <span className={`checkin-status ${entry.status}`}>
                           {statusLabel[entry.status]}
                         </span>
-                      </td>
-                      <td>{entry.note || '-'}</td>
-                      <td>{new Date(entry.createdAt).toLocaleString('th-TH')}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell>{entry.note || '-'}</TableCell>
+                      <TableCell>{new Date(entry.createdAt).toLocaleString('th-TH')}</TableCell>
+                      <TableCell>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <Button size="small" variant="outlined" onClick={() => handleOpenEdit(entry)}>แก้ไข</Button>
+                          <Button size="small" color="error" variant="outlined" onClick={() => handleDelete(entry)}>ลบ</Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </TableContainer>
         </div>
       </main>
+
+      <Dialog open={editDialog.open} onClose={handleCloseEdit} fullWidth maxWidth="sm">
+        <DialogTitle>แก้ไขข้อมูลเช็คชื่อ</DialogTitle>
+        <DialogContent>
+          <div style={{ display: 'grid', gap: 12, marginTop: 8 }}>
+            <TextField
+              fullWidth
+              label="วันที่"
+              type="date"
+              value={editDialog.date}
+              onChange={(event) => setEditDialog((prev) => ({ ...prev, date: event.target.value }))}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              fullWidth
+              select
+              label="สถานะ"
+              value={editDialog.status}
+              onChange={(event) => setEditDialog((prev) => ({ ...prev, status: event.target.value }))}
+            >
+              <MenuItem value="present">มา</MenuItem>
+              <MenuItem value="late">สาย</MenuItem>
+              <MenuItem value="absent">ขาด</MenuItem>
+            </TextField>
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              label="กิจกรรมที่ทำในวันนี้"
+              value={editDialog.note}
+              onChange={(event) => setEditDialog((prev) => ({ ...prev, note: event.target.value }))}
+            />
+          </div>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEdit}>ยกเลิก</Button>
+          <Button variant="contained" onClick={handleSaveEdit}>บันทึก</Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

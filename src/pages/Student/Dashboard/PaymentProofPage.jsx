@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Button, Alert, Typography, Stack } from '@mui/material';
 import api from '../../../api/axios';
 import './DashboardPage.css'; // Reusing layout
 import './PaymentProofPage.css'; // New styles
+
+const toDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์รูปภาพได้'));
+    reader.readAsDataURL(file);
+  });
 
 const PaymentProofPage = () => {
   const navigate = useNavigate();
@@ -25,7 +34,7 @@ const PaymentProofPage = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    navigate('/login');
+    navigate('/');
   };
 
   const handleFileChange = (e) => {
@@ -44,6 +53,8 @@ const PaymentProofPage = () => {
     setUploading(true);
     // Simulate upload
     try {
+      const slipDataUrl = await toDataUrl(file);
+
         // In reality, use FormData to send file
         // const formData = new FormData();
         // formData.append('receipt', file);
@@ -57,7 +68,9 @@ const PaymentProofPage = () => {
              studentName: user.full_name || user.name || 'นักศึกษา',
              date: new Date().toLocaleDateString('th-TH'),
              status: 'pending',
-             slipUrl: 'https://via.placeholder.com/300?text=Slip+Image' // In real app, this would be the uploaded image URL
+             department: user.department || user.major || 'ไม่ระบุ',
+             slipDataUrl,
+             slipFileName: file.name
         };
         
         const existingPayments = JSON.parse(localStorage.getItem('payment_proofs') || '[]');
@@ -69,7 +82,7 @@ const PaymentProofPage = () => {
         setFile(null);
         setPreviewUrl(null);
         
-        alert('อัพโหลดหลักฐานเรียบร้อยแล้ว รอเจ้าหน้าที่ตรวจสอบ');
+        setUploadStatus('success');
     } catch (error) {
         console.error(error);
         setUploadStatus('error');
@@ -80,35 +93,32 @@ const PaymentProofPage = () => {
 
   return (
     <div className="dashboard-container">
-      <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      <div className="mobile-top-navbar">
+        <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
+        <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+      </div>
       <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>🎓 นักศึกษา</h2>
+          <h2>นักศึกษา</h2>
         </div>
         <nav className="sidebar-nav">
           <Link to="/dashboard" className="nav-item">
-            <span className="nav-icon">🏠</span>
             <span>หน้าหลัก</span>
           </Link>
           <Link to="/dashboard/new-request" className="nav-item">
-            <span className="nav-icon">➕</span>
             <span>ยื่นคำร้องใหม่</span>
           </Link>
           <Link to="/dashboard/my-requests" className="nav-item">
-            <span className="nav-icon">📝</span>
             <span>คำร้องของฉัน</span>
           </Link>
           <Link to="/dashboard/payment-proof" className="nav-item active">
-            <span className="nav-icon">💰</span>
             <span>หลักฐานการชำระเงิน</span>
           </Link>
           <Link to="/dashboard/check-in" className="nav-item">
-            <span className="nav-icon">✅</span>
             <span>เช็คชื่อรายวัน</span>
           </Link>
           <Link to="/dashboard/profile" className="nav-item">
-            <span className="nav-icon">👤</span>
             <span>โปรไฟล์</span>
           </Link>
         </nav>
@@ -132,51 +142,49 @@ const PaymentProofPage = () => {
 
         <div className="content-wrapper">
             <div className="payment-proof-card">
-                <h3>📤 อัพโหลดใบเสร็จ</h3>
-                <p className="instruction-text">กรุณาแนบไฟล์รูปภาพ (JPG, PNG) ของหลักฐานการชำระเงิน</p>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>อัพโหลดใบเสร็จ</Typography>
+                <Typography className="instruction-text" sx={{ color: '#475569', mb: 2 }}>กรุณาแนบไฟล์รูปภาพ (JPG, PNG) ของหลักฐานการชำระเงิน</Typography>
                 
                 <form onSubmit={handleUpload} className="upload-form">
                     <div className="file-drop-area">
                         {previewUrl ? (
                             <div className="image-preview">
                                 <img src={previewUrl} alt="Preview" />
-                                <button type="button" className="remove-btn" onClick={() => {
+                              <Button type="button" size="small" color="error" variant="outlined" className="remove-btn" onClick={() => {
                                     setFile(null);
                                     setPreviewUrl(null);
-                                }}>❌ ยกเลิก</button>
+                              }}>ยกเลิก</Button>
                             </div>
                         ) : (
                             <div className="placeholder-preview">
-                                <span className="icon">📷</span>
                                 <span>คลิกเพื่อเลือกรูปภาพ</span>
-                                <input 
-                                    type="file" 
-                                    accept="image/*" 
-                                    onChange={handleFileChange}
-                                    className="file-input"
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleFileChange}
+                                  className="file-input"
                                 />
                             </div>
                         )}
                     </div>
 
-                    <button 
+                    <Button 
                         type="submit" 
-                        className={`submit-btn ${uploading ? 'disabled' : ''}`}
+                        variant="contained"
+                        className="submit-btn"
                         disabled={!file || uploading}
                     >
                         {uploading ? 'กำลังอัพโหลด...' : 'ยืนยันการส่งหลักฐาน'}
-                    </button>
+                    </Button>
 
-                    {uploadStatus === 'success' && (
-                        <div className="success-message">
-                            ✅ ส่งหลักฐานเรียบร้อยแล้ว รอการตรวจสอบจากเจ้าหน้าที่
-                        </div>
-                    )}
-                     {uploadStatus === 'error' && (
-                        <div className="error-message">
-                            ❌ เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง
-                        </div>
-                    )}
+                    <Stack spacing={1} sx={{ mt: 1 }}>
+                      {uploadStatus === 'success' && (
+                        <Alert severity="success">ส่งหลักฐานเรียบร้อยแล้ว รอการตรวจสอบจากเจ้าหน้าที่</Alert>
+                      )}
+                      {uploadStatus === 'error' && (
+                        <Alert severity="error">เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง</Alert>
+                      )}
+                    </Stack>
                 </form>
             </div>
         </div>
