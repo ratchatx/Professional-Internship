@@ -1,17 +1,42 @@
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL;
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
-// Create axios instance
 const api = axios.create({
-  baseURL: baseURL || undefined,
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add a mock adapter or interceptor for demo purposes if needed
-// For this specific task, we are relying on localStorage for data persistence
-// so the axios calls might be placeholders or need to be wrapped.
+// Auto-attach JWT token from localStorage
+api.interceptors.request.use((config) => {
+  const userStr = localStorage.getItem('user');
+  if (userStr) {
+    try {
+      const user = JSON.parse(userStr);
+      if (user.token) {
+        config.headers.Authorization = `Bearer ${user.token}`;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  return config;
+});
+
+// Handle 401 responses (token expired / invalid)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('user');
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;

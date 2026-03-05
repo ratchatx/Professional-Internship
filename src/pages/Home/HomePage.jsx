@@ -11,7 +11,7 @@ import {
   Toolbar,
   Typography,
 } from '@mui/material';
-import asyncStorage from '../../utils/asyncStorage';
+import api from '../../api/axios';
 import './HomePage.css';
 import logo from '../../assets/LASC-SSKRU-1.png';
 import banner from '../../assets/Banner.jpg';
@@ -21,14 +21,29 @@ const HomePage = () => {
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [companyCatalog, setCompanyCatalog] = useState([]);
 
-  const fallbackCompanies = [
-    { name: 'บริษัท ABC', businessType: 'เทคโนโลยีสารสนเทศ', address: 'สงขลา', source: 'รายการแนะนำ', imageUrl: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=800&auto=format&fit=crop&crop=top' },
-    { name: 'บริษัท NEX Digital', businessType: 'ซอฟต์แวร์และดิจิทัลโซลูชัน', address: 'หาดใหญ่', source: 'รายการแนะนำ', imageUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=800&auto=format&fit=crop&crop=top' },
-    { name: 'บริษัท Green Agro Tech', businessType: 'เทคโนโลยีการเกษตร', address: 'พัทลุง', source: 'รายการแนะนำ', imageUrl: 'https://images.unsplash.com/photo-1504639725590-34d0984388bd?q=80&w=800&auto=format&fit=crop&crop=top' },
-    { name: 'บริษัท HealthPlus Care', businessType: 'สุขภาพและสาธารณสุข', address: 'สงขลา', source: 'รายการแนะนำ', imageUrl: 'https://picsum.photos/id/1011/800/600' },
-    { name: 'บริษัท BuildWise Engineering', businessType: 'วิศวกรรมและโครงสร้าง', address: 'นครศรีธรรมราช', source: 'รายการแนะนำ', imageUrl: 'https://images.unsplash.com/photo-1509395176047-4a66953fd231?q=80&w=800&auto=format&fit=crop&crop=top' },
-    { name: 'บริษัท Smart Logistics Hub', businessType: 'โลจิสติกส์และซัพพลายเชน', address: 'สุราษฎร์ธานี', source: 'รายการแนะนำ', imageUrl: 'https://picsum.photos/id/1037/800/600' },
+  const companyImagePool = [
+    'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=800&auto=format&fit=crop&crop=top',
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=800&auto=format&fit=crop&crop=top',
+    'https://images.unsplash.com/photo-1504639725590-34d0984388bd?q=80&w=800&auto=format&fit=crop&crop=top',
+    'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?q=80&w=800&auto=format&fit=crop&crop=top',
+    'https://images.unsplash.com/photo-1469474968028-56623f02e42e?q=80&w=800&auto=format&fit=crop&crop=top',
+    'https://images.unsplash.com/photo-1509395176047-4a66953fd231?q=80&w=800&auto=format&fit=crop&crop=top',
+    'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?q=80&w=800&auto=format&fit=crop&crop=top',
+    'https://images.unsplash.com/photo-1449247526693-aa049327be54?q=80&w=800&auto=format&fit=crop&crop=top',
+    'https://images.unsplash.com/photo-1487058792275-0ad4aaf24ca7?q=80&w=800&auto=format&fit=crop&crop=top',
+    'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=800&auto=format&fit=crop&crop=top',
+    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=800&auto=format&fit=crop&crop=top',
+    'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=800&auto=format&fit=crop&crop=top',
   ];
+
+  const getCompanyImage = (key, indexOffset = 0) => {
+    if (!companyImagePool.length) return undefined;
+    const hash = key
+      .split('')
+      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const index = (hash + indexOffset) % companyImagePool.length;
+    return companyImagePool[index];
+  };
 
   const normalizeCompanyName = (value) =>
     String(value || '')
@@ -36,64 +51,114 @@ const HomePage = () => {
       .toLowerCase()
       .replace(/\s+/g, ' ');
 
-  const buildCompanyCatalog = () => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const requests = JSON.parse(localStorage.getItem('requests') || '[]');
+  const fallbackCompanies = [
+    { name: 'บริษัท ABC', businessType: 'เทคโนโลยีสารสนเทศ', address: 'สงขลา', source: 'รายการแนะนำ' },
+    { name: 'บริษัท NEX Digital', businessType: 'ซอฟต์แวร์และดิจิทัลโซลูชัน', address: 'หาดใหญ่', source: 'รายการแนะนำ' },
+    { name: 'บริษัท Green Agro Tech', businessType: 'เทคโนโลยีการเกษตร', address: 'พัทลุง', source: 'รายการแนะนำ' },
+    { name: 'บริษัท HealthPlus Care', businessType: 'สุขภาพและสาธารณสุข', address: 'สงขลา', source: 'รายการแนะนำ' },
+    { name: 'บริษัท BuildWise Engineering', businessType: 'วิศวกรรมและโครงสร้าง', address: 'นครศรีธรรมราช', source: 'รายการแนะนำ' },
+    { name: 'บริษัท Smart Logistics Hub', businessType: 'โลจิสติกส์และซัพพลายเชน', address: 'สุราษฎร์ธานี', source: 'รายการแนะนำ' },
+  ].map((company, index) => ({
+    ...company,
+    imageUrl: getCompanyImage(normalizeCompanyName(company.name), index),
+  }));
+
+  const formatAddress = (address) => {
+    if (!address) return 'ไม่ระบุที่อยู่';
+    if (typeof address === 'string') return address;
+
+    const parts = [];
+    if (address.house) parts.push(`บ้านเลขที่ ${address.house}`);
+    if (address.moo) parts.push(`หมู่ ${address.moo}`);
+    if (address.tambon) parts.push(`ตำบล ${address.tambon}`);
+    if (address.amphur) parts.push(`อำเภอ ${address.amphur}`);
+    if (address.province) parts.push(`จังหวัด ${address.province}`);
+    if (address.postal) parts.push(`รหัส ${address.postal}`);
+    if (address.detail) parts.push(address.detail);
+
+    return parts.length ? parts.join(' ') : 'ไม่ระบุที่อยู่';
+  };
+
+  const buildCompanyCatalog = async () => {
     const map = new Map();
-
-    users
-      .filter((item) => item.role === 'company')
-      .forEach((company) => {
-        const companyName = company.companyName || company.name || company.full_name || company.username || '';
-        const key = normalizeCompanyName(companyName);
-        if (!key) return;
-
-        map.set(key, {
-          name: companyName,
-          businessType: company.businessType || 'ไม่ระบุประเภทธุรกิจ',
-          address: company.address || 'ไม่ระบุที่อยู่',
-          source: 'จากบัญชีบริษัท'
-        });
-      });
-
-    requests.forEach((request) => {
-      const companyName = request.companyName || request.company || request.details?.companyName || '';
-      const key = normalizeCompanyName(companyName);
-      if (!key) return;
-
-      const existing = map.get(key);
-      if (existing) {
-        if (existing.businessType === 'ไม่ระบุประเภทธุรกิจ' && request.position) {
-          existing.businessType = `ตำแหน่งยอดฮิต: ${request.position}`;
+    try {
+      const userStr = localStorage.getItem('user');
+      const token = (() => {
+        try {
+          return userStr ? JSON.parse(userStr)?.token : undefined;
+        } catch {
+          return undefined;
         }
+      })();
+
+      if (!token) {
+        const publicRes = await api.get('/public/companies', { headers: { Authorization: undefined } });
+        const companies = publicRes.data.data || [];
+        setCompanyCatalog(companies.length ? companies : fallbackCompanies);
         return;
       }
 
-      map.set(key, {
-        name: companyName,
-        businessType: request.position ? `ตำแหน่งยอดฮิต: ${request.position}` : 'ไม่ระบุประเภทธุรกิจ',
-        address: request.details?.address || request.address || 'ไม่ระบุที่อยู่',
-        source: 'จากคำร้องรุ่นพี่'
-      });
-    });
+      const [usersRes, reqsRes] = await Promise.all([
+        api.get('/users').catch(() => ({ data: { data: [] } })),
+        api.get('/requests').catch(() => ({ data: { data: [] } })),
+      ]);
+      const users = usersRes.data.data || [];
+      const requests = reqsRes.data.data || [];
 
+      users
+        .filter((item) => item.role === 'company')
+        .forEach((company) => {
+          const companyName = company.companyName || company.name || company.full_name || company.username || '';
+          const key = normalizeCompanyName(companyName);
+          if (!key) return;
+          map.set(key, {
+            name: companyName,
+            businessType: company.businessType || 'ไม่ระบุประเภทธุรกิจ',
+            address: formatAddress(company.address),
+            source: 'จากบัญชีบริษัท',
+            imageUrl: company.imageUrl || company.logo || getCompanyImage(key),
+            contactPerson: company.contactPerson || '',
+            phone: company.phone || '',
+          });
+        });
+
+      requests.forEach((request) => {
+        const companyName = request.companyName || request.company || request.details?.companyName || '';
+        const key = normalizeCompanyName(companyName);
+        if (!key) return;
+        const existing = map.get(key);
+        if (existing) {
+          if (existing.businessType === 'ไม่ระบุประเภทธุรกิจ' && request.position) {
+            existing.businessType = `ตำแหน่งยอดฮิต: ${request.position}`;
+          }
+          return;
+        }
+        map.set(key, {
+          name: companyName,
+          businessType: request.position ? `ตำแหน่งยอดฮิต: ${request.position}` : 'ไม่ระบุประเภทธุรกิจ',
+          address: formatAddress(request.details?.companyAddress || request.address),
+          source: 'จากคำร้องรุ่นพี่',
+          imageUrl: getCompanyImage(key, 3),
+        });
+      });
+    } catch (err) {
+      console.error('Failed to build company catalog:', err);
+      setCompanyCatalog(fallbackCompanies);
+      return;
+    }
     const result = Array.from(map.values());
     setCompanyCatalog(result.length > 0 ? result.slice(0, 12) : fallbackCompanies);
   };
 
   useEffect(() => {
-    let mounted = true;
-    asyncStorage.getItem('user').then((raw) => {
-      if (!mounted) return;
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
       try {
-        if (raw) setUser(JSON.parse(raw));
+        setUser(JSON.parse(userStr));
       } catch (e) {
         setUser(null);
       }
-    });
-    return () => {
-      mounted = false;
-    };
+    }
   }, []);
 
   useEffect(() => {
@@ -115,8 +180,8 @@ const HomePage = () => {
     };
   }, []);
 
-  const handleLogout = async () => {
-    await asyncStorage.removeItem('user');
+  const handleLogout = () => {
+    localStorage.removeItem('user');
     setUser(null);
     setMenuAnchorEl(null);
   };

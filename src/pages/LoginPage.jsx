@@ -10,6 +10,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import api from '../api/axios';
 import './LoginPage.css';
 import lascLogo from '../assets/LASC-SSKRU-1.png';
 import sskruLogo from '../assets/SSKRU-logo-400x400-1-192x192.png';
@@ -34,48 +35,24 @@ const LoginPage = () => {
     e.preventDefault();
     
     try {
-      // 1. Try to find user in localStorage (registered users)
-      const usersStr = localStorage.getItem('users');
-      const users = usersStr ? JSON.parse(usersStr) : [];
-      
-      const foundUser = users.find(u => 
-        (u.email === formData.email || u.username === formData.email) && 
-        u.password === formData.password
-      );
+      const response = await api.post('/auth/login', {
+        email: formData.email,
+        password: formData.password,
+      });
 
-      if (foundUser) {
-        console.log('Login success:', foundUser);
-        localStorage.setItem('user', JSON.stringify(foundUser));
-        
-        switch(foundUser.role) {
-            case 'admin': navigate('/admin-dashboard'); break;
-            case 'advisor': navigate('/advisor-dashboard'); break;
-            case 'company': navigate('/company-dashboard'); break;
-            default: navigate('/dashboard');
-        }
-        return;
+      const { token, user } = response.data;
+
+      // เก็บ user + token ใน localStorage ตรงกับ format เดิม
+      const userData = { ...user, token };
+      localStorage.setItem('user', JSON.stringify(userData));
+      console.log('Login success:', userData);
+
+      switch(user.role) {
+          case 'admin': navigate('/admin-dashboard'); break;
+          case 'advisor': navigate('/advisor-dashboard'); break;
+          case 'company': navigate('/company-dashboard'); break;
+          default: navigate('/dashboard');
       }
-
-      // If not found in stored users, fallback to mock demo logic (for admin/advisor if not registered)
-      if (formData.email.includes('admin') || formData.email.includes('advisor')) {
-        let role = 'student';
-        if (formData.email.includes('admin')) role = 'admin';
-        if (formData.email.includes('advisor')) role = 'advisor';
-
-        const mockUser = {
-            _id: 'mock_id_' + Date.now(),
-            email: formData.email,
-            role: role, 
-            name: role === 'admin' ? 'Admin User' : 'Advisor User',
-            full_name: role === 'admin' ? 'Admin User' : 'Advisor User',
-        };
-        localStorage.setItem('user', JSON.stringify(mockUser));
-        if (role === 'admin') navigate('/admin-dashboard');
-        else if (role === 'advisor') navigate('/advisor-dashboard');
-        return;
-      }
-      
-      alert('ไม่พบผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง');
 
     } catch (error) {
       console.error('Login error:', error);
@@ -85,12 +62,6 @@ const LoginPage = () => {
 
   return (
     <Box className="login-page">
-      <Box component="header" className="top-header">
-        <Box className="header-content">
-          <img src={lascLogo} alt="LASC Logo" className="header-logo" />
-        </Box>
-      </Box>
-
       <Box className="login-wrapper">
         <Card
           className="login-card-redesigned"
@@ -116,15 +87,34 @@ const LoginPage = () => {
             sx={{
               display: 'flex',
               flexDirection: { xs: 'column', md: 'row' },
-              minHeight: { md: 500 },
-              pb: 3,
+              minHeight: { xs: 'auto', md: 500 },
+              pb: { xs: 2, md: 3 },
             }}
           >
             <Box className="left-panel">
-              <Typography variant="h5" sx={{ fontWeight: 500, color: '#111111', mb: 0.5 }}>
+              <Typography
+                variant="h5"
+                className="panel-title"
+                sx={{
+                  fontWeight: 600,
+                  color: '#f8fafc',
+                  mb: { xs: 1.25, md: 0.5 },
+                  fontSize: { xs: '1.35rem', md: '1.6rem' },
+                }}
+              >
                 Professional Internship
               </Typography>
-              <Typography sx={{ color: '#333333', fontSize: '1rem', mb: 5, textAlign: 'center' }}>
+              <Typography
+                className="panel-tagline"
+                sx={{
+                  color: 'rgba(248, 250, 252, 0.85)',
+                  fontSize: { xs: '0.92rem', md: '1rem' },
+                  mb: { xs: 3, md: 5 },
+                  textAlign: 'center',
+                  letterSpacing: 0.3,
+                  lineHeight: 1.4,
+                }}
+              >
                 ( ระบบยื่นคำร้องขอเข้าฝึกประสบการณ์วิชาชีพ )
               </Typography>
               <Box className="university-logo-container">

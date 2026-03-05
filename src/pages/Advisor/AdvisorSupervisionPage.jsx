@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../../api/axios';
 import {
     Alert,
     Box,
@@ -34,6 +35,7 @@ const AdvisorSupervisionPage = () => {
     const [advisorName, setAdvisorName] = useState('');
     const [advisorDept, setAdvisorDept] = useState('');
     const [supervisionRows, setSupervisionRows] = useState([]);
+    const [allCheckins, setAllCheckins] = useState([]);
     const [appointmentDialog, setAppointmentDialog] = useState({
         open: false,
         requestId: null,
@@ -81,10 +83,9 @@ const AdvisorSupervisionPage = () => {
     };
 
     const getInternshipProgress = (request) => {
-        const checkins = JSON.parse(localStorage.getItem('daily_checkins') || '[]');
         return calculateInternshipProgressByCheckins({
             request,
-            checkins,
+            checkins: allCheckins,
             studentIds: [request.studentId, request.student_code, request.username, request.email],
             studentNames: [request.studentName, request.details?.student_info?.name]
         });
@@ -104,16 +105,19 @@ const AdvisorSupervisionPage = () => {
         return 'นัดแล้ว';
     };
 
-    const loadSupervisionRows = (dept) => {
-        const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-        const activeStatuses = ['อนุมัติแล้ว', 'ออกฝึกงาน', 'ฝึกงานเสร็จแล้ว'];
-
-        const filtered = allRequests.filter((request) => {
-            const sameDept = dept ? (request.department || '') === dept : true;
-            return sameDept && activeStatuses.includes(request.status);
-        });
-
-        setSupervisionRows(filtered);
+    const loadSupervisionRows = async (dept) => {
+        try {
+            const res = await api.get('/requests');
+            const allRequests = res.data.data || [];
+            const activeStatuses = ['อนุมัติแล้ว', 'ออกฝึกงาน', 'ฝึกงานเสร็จแล้ว'];
+            const filtered = allRequests.filter((request) => {
+                const sameDept = dept ? (request.department || '') === dept : true;
+                return sameDept && activeStatuses.includes(request.status);
+            });
+            setSupervisionRows(filtered);
+        } catch (err) {
+            console.error('Failed to load requests:', err);
+        }
     };
 
     useEffect(() => {
@@ -133,17 +137,14 @@ const AdvisorSupervisionPage = () => {
         setAdvisorName(user.name || user.full_name || 'อาจารย์ที่ปรึกษา');
         setAdvisorDept(dept);
         loadSupervisionRows(dept);
+        api.get('/checkins').then(res => setAllCheckins(res.data.data || [])).catch(() => {});
     }, [navigate]);
 
     const persistRequests = (updater) => {
-        const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-        const updated = updater(allRequests);
-        localStorage.setItem('requests', JSON.stringify(updated));
-        const refreshed = updated.filter((request) => {
-            const sameDept = advisorDept ? (request.department || '') === advisorDept : true;
-            return sameDept && ['อนุมัติแล้ว', 'ออกฝึกงาน', 'ฝึกงานเสร็จแล้ว'].includes(request.status);
+        setSupervisionRows((prev) => {
+            const updated = updater(prev);
+            return updated;
         });
-        setSupervisionRows(refreshed);
     };
 
     const openAppointmentDialog = (request) => {

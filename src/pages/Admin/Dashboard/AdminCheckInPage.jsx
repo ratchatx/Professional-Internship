@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../../../api/axios';
 import {
   Table,
   TableBody,
@@ -42,35 +43,21 @@ const AdminCheckInPage = () => {
     });
   };
 
-  const buildDepartmentMap = () => {
+  const buildDepartmentMap = async () => {
     const map = {};
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const requests = JSON.parse(localStorage.getItem('requests') || '[]');
-
-    users
-      .filter((user) => user.role === 'student')
-      .forEach((student) => {
+    try {
+      const usersRes = await api.get('/users?role=student');
+      const students = usersRes.data.data || [];
+      students.forEach((student) => {
         const dept = student.department || student.major || '';
         if (!dept) return;
         [student.student_code, student.studentId, student.username, student.email]
           .filter(Boolean)
-          .forEach((key) => {
-            map[String(key)] = dept;
-          });
+          .forEach((key) => { map[String(key)] = dept; });
       });
-
-    requests.forEach((request) => {
-      const dept = request.department || request.details?.student_info?.major || '';
-      if (!dept) return;
-      [request.studentId, request.student_code, request.username, request.email]
-        .filter(Boolean)
-        .forEach((key) => {
-          if (!map[String(key)]) {
-            map[String(key)] = dept;
-          }
-        });
-    });
-
+    } catch (err) {
+      console.error('Failed to load users for department map:', err);
+    }
     const departments = Array.from(new Set(Object.values(map))).sort((a, b) => a.localeCompare(b, 'th-TH'));
     setDepartmentMap(map);
     setDepartmentOptions(departments);
@@ -90,8 +77,12 @@ const AdminCheckInPage = () => {
     }
 
     setAdminName(user.name || 'Admin');
-    const stored = JSON.parse(localStorage.getItem('daily_checkins') || '[]');
-    setEntries(sortEntriesByDateDesc(stored));
+
+    // Load checkins from API
+    api.get('/checkins').then(res => {
+      setEntries(sortEntriesByDateDesc(res.data.data || []));
+    }).catch(err => console.error('Failed to load checkins:', err));
+
     buildDepartmentMap();
   }, [navigate]);
 
@@ -149,7 +140,7 @@ const AdminCheckInPage = () => {
     setEditDialog({ open: false, target: null, date: '', status: 'present', note: '' });
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editDialog.target) return;
     if (!editDialog.date) {
       alert('กรุณาระบุวันที่');
@@ -177,9 +168,21 @@ const AdminCheckInPage = () => {
       };
     });
 
-    const sorted = sortEntriesByDateDesc(updated);
-    setEntries(sorted);
-    localStorage.setItem('daily_checkins', JSON.stringify(sorted));
+    // For edit, we re-create the checkin via API (upsert by studentId+date)
+    try {
+      await api.post('/checkins', {
+        studentId: editDialog.target.studentId,
+        studentName: editDialog.target.studentName,
+        date: editDialog.date,
+        status: editDialog.status,
+        note: editDialog.note,
+      });
+      // Reload
+      const res = await api.get('/checkins');
+      setEntries(sortEntriesByDateDesc(res.data.data || []));
+    } catch (err) {
+      alert('บันทึกล้มเหลว: ' + (err.response?.data?.message || err.message));
+    }
     handleCloseEdit();
   };
 
@@ -191,9 +194,12 @@ const AdminCheckInPage = () => {
     });
 
     if (!confirmed) return;
-    const updated = entries.filter((item) => !isSameEntry(item, entry));
-    setEntries(updated);
-    localStorage.setItem('daily_checkins', JSON.stringify(updated));
+    try {
+      await api.delete(`/checkins/${entry.id}`);
+      setEntries(entries.filter((item) => !isSameEntry(item, entry)));
+    } catch (err) {
+      alert('ลบล้มเหลว: ' + (err.response?.data?.message || err.message));
+    }
   };
 
   return (
@@ -222,6 +228,9 @@ const AdminCheckInPage = () => {
           </Link>
           <Link to="/admin-dashboard/checkins" className="nav-item active">
             <span>เช็คชื่อรายวัน</span>
+          </Link>
+          <Link to="/admin-dashboard/attendance-overview" className="nav-item">
+            <span>ภาพรวมรายบุคคล</span>
           </Link>
           <Link to="/admin-dashboard/reports" className="nav-item">
             <span>รายงาน</span>

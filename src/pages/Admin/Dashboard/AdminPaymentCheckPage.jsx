@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import asyncStorage from '../../../utils/asyncStorage';
+import api from '../../../api/axios';
 import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, TextField, MenuItem, Button, Snackbar, Alert as MuiAlert, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import './AdminPaymentCheckPage.css';
 
@@ -40,34 +40,13 @@ const AdminPaymentCheckPage = () => {
                 return; 
             }
 
-            // Load users to get department info
-            const usersJson = await asyncStorage.getItem('users');
-            const users = usersJson ? JSON.parse(usersJson) : [];
-            const getDept = (id) => {
-                const u = users.find(u => u.studentId === id || u.student_code === id || u.username === id);
-                return u ? (u.department || u.major) : 'N/A';
-            };
-
-            // In a real app, you would fetch from API. 
-            // For now, let's load from localStorage where PaymentProofPage.jsx might have saved data,
-            // or we can simulate some data if none exists
-            const storedPayments = JSON.parse(localStorage.getItem('payment_proofs') || '[]');
-            
-            let paymentData = [];
-            // Mock data if empty for demonstration
-            if (storedPayments.length === 0) {
-                 const mockPayments = [
-                     { id: 1, studentId: '65000001', studentName: 'สมชาย ใจดี', date: '2023-10-25', status: 'pending', slipUrl: 'https://via.placeholder.com/150', department: 'วิศวกรรมคอมพิวเตอร์' },
-                     { id: 2, studentId: '65000002', studentName: 'สมหญิง รักเรียน', date: '2023-10-26', status: 'approved', slipUrl: 'https://via.placeholder.com/150', department: 'วิศวกรรมไฟฟ้า' }
-                 ];
-                 paymentData = mockPayments;
-            } else {
-                 paymentData = storedPayments.map(p => ({
-                     ...p,
-                     department: p.department || getDept(p.studentId) || 'ไม่ระบุ'
-                 }));
+            // Load payments from API
+            try {
+                const res = await api.get('/payments');
+                setPayments(res.data.data || []);
+            } catch (err) {
+                console.error('Failed to load payments:', err);
             }
-            setPayments(paymentData);
 
         };
         checkAdmin();
@@ -78,18 +57,24 @@ const AdminPaymentCheckPage = () => {
         navigate('/');
     };
 
-    const handleApprove = (id) => {
-        const updated = payments.map(p => p.id === id ? { ...p, status: 'approved' } : p);
-        setPayments(updated);
-        // localStorage.setItem('payment_proofs', JSON.stringify(updated));
-        setToast({ open: true, message: 'อนุมัติการชำระเงินเรียบร้อย', severity: 'success' });
+    const handleApprove = async (id) => {
+        try {
+            await api.patch(`/payments/${id}/approve`);
+            setPayments(payments.map(p => String(p.id) === String(id) ? { ...p, status: 'approved' } : p));
+            setToast({ open: true, message: 'อนุมัติการชำระเงินเรียบร้อย', severity: 'success' });
+        } catch (err) {
+            setToast({ open: true, message: 'เกิดข้อผิดพลาด: ' + (err.response?.data?.message || err.message), severity: 'error' });
+        }
     };
 
-    const handleReject = (id) => {
-        const updated = payments.map(p => p.id === id ? { ...p, status: 'rejected' } : p);
-        setPayments(updated);
-        // localStorage.setItem('payment_proofs', JSON.stringify(updated));
+    const handleReject = async (id) => {
+        try {
+            await api.patch(`/payments/${id}/reject`);
+            setPayments(payments.map(p => String(p.id) === String(id) ? { ...p, status: 'rejected' } : p));
             setToast({ open: true, message: 'ปฏิเสธการชำระเงินเรียบร้อย', severity: 'info' });
+        } catch (err) {
+            setToast({ open: true, message: 'เกิดข้อผิดพลาด: ' + (err.response?.data?.message || err.message), severity: 'error' });
+        }
     };
 
     const handleOpenSlip = (payment) => {
@@ -159,6 +144,9 @@ const AdminPaymentCheckPage = () => {
                     </Link>
                     <Link to="/admin-dashboard/checkins" className="nav-item">
                         <span>เช็คชื่อรายวัน</span>
+                    </Link>
+                    <Link to="/admin-dashboard/attendance-overview" className="nav-item">
+                        <span>ภาพรวมรายบุคคล</span>
                     </Link>
                     <Link to="/admin-dashboard/reports" className="nav-item">
                         <span>รายงาน</span>

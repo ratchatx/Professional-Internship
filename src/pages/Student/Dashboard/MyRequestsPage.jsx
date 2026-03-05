@@ -27,29 +27,21 @@ const MyRequestsPage = () => {
     const fetchRequests = async () => {
         try {
             const userStr = localStorage.getItem('user');
-            if (userStr) {
-                const user = JSON.parse(userStr);
-                
-                // Demo Mode: Fetch from LocalStorage for consistency with other roles
-                const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-                // Filter requests for this student (using simple string match for demo, better to use ID)
-                // In NewRequestPage we saved studentId as either code or username
-                // Let's match roughly
-                const myReqs = allRequests.filter(req => 
-                    req.studentId == user.student_code || 
-                    req.studentId == user.username ||
-                    req.studentName === user.full_name ||
-                    (user.email && req.studentId === user.email)
-                ).map(req => ({
-                    ...req,
-                    companyName: req.companyName || req.company || 'Unknown Company',
-                    position: req.position || 'Unknown Position'
-                }));
-
-                setMyRequests(myReqs);
-            } else {
+            if (!userStr) {
                 navigate('/login');
+                return;
             }
+            const user = JSON.parse(userStr);
+            setStudentName(user.full_name || user.name || '');
+
+            const studentId = user.student_code || user.studentId || user.username;
+            const res = await api.get(`/requests?studentId=${studentId}`);
+            const myReqs = (res.data.data || []).map(req => ({
+                ...req,
+                companyName: req.companyName || req.company || 'Unknown Company',
+                position: req.position || 'Unknown Position'
+            }));
+            setMyRequests(myReqs);
         } catch (error) {
             console.error('Error fetching requests:', error);
             setMyRequests([]);

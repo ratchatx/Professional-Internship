@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../../api/axios';
 import {
   Box,
   Paper,
@@ -54,8 +55,9 @@ const AdvisorDashboardPage = () => {
       setAdvisorName(user.name);
       setAdvisorDepartment(user.department || user.major || '');
       
-      const storedRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-      setAllRequests(storedRequests);
+      api.get('/requests').then(res => {
+        setAllRequests(res.data.data || []);
+      }).catch(err => console.error('Failed to load requests:', err));
     } else {
       navigate('/login');
     }
@@ -77,34 +79,41 @@ const AdvisorDashboardPage = () => {
     return req.status === filter;
   });
   
-  const handleApprove = (requestId) => {
-    const updated = allRequests.map(r =>
-      r.id === requestId ? { ...r, status: 'รอผู้ดูแลระบบอนุมัติ' } : r
-    );
-    setAllRequests(updated);
-    localStorage.setItem('requests', JSON.stringify(updated));
-    setToast({ open: true, message: 'อนุมัติคำร้องเรียบร้อย และส่งต่อให้ผู้ดูแลระบบ', severity: 'success' });
+  const handleApprove = async (requestId) => {
+    try {
+      await api.patch(`/requests/${requestId}/status`, { status: 'รอผู้ดูแลระบบอนุมัติ' });
+      setAllRequests(allRequests.map(r => String(r.id) === String(requestId) ? { ...r, status: 'รอผู้ดูแลระบบอนุมัติ' } : r));
+      setToast({ open: true, message: 'อนุมัติคำร้องเรียบร้อย และส่งต่อให้ผู้ดูแลระบบ', severity: 'success' });
+    } catch (err) {
+      setToast({ open: true, message: 'อัปเดตล้มเหลว: ' + (err.response?.data?.message || err.message), severity: 'error' });
+    }
   };
 
   const handleReject = (requestId) => {
     setRejectModal({ open: true, requestId, reason: '' });
   };
 
-  const handleRejectConfirm = () => {
+  const handleRejectConfirm = async () => {
     if (!rejectModal.reason.trim()) {
       setToast({ open: true, message: 'กรุณาระบุเหตุผลที่ไม่อนุมัติ', severity: 'warning' });
       return;
     }
 
-    const rejectedRequest = allRequests.find(r => r.id === rejectModal.requestId);
-    const updated = allRequests.map((request) => (
-      request.id === rejectModal.requestId
-        ? { ...request, status: 'ไม่อนุมัติ (อาจารย์)', rejectReason: rejectModal.reason.trim() }
-        : request
-    ));
-    setAllRequests(updated);
-    localStorage.setItem('requests', JSON.stringify(updated));
-    setToast({ open: true, message: `ปฏิเสธคำร้องของ ${rejectedRequest?.studentName || 'นักศึกษา'} แล้ว`, severity: 'info' });
+    const rejectedRequest = allRequests.find(r => String(r.id) === String(rejectModal.requestId));
+    try {
+      await api.patch(`/requests/${rejectModal.requestId}/status`, {
+        status: 'ไม่อนุมัติ (อาจารย์)',
+        advisor_comment: rejectModal.reason.trim(),
+      });
+      setAllRequests(allRequests.map((request) => (
+        String(request.id) === String(rejectModal.requestId)
+          ? { ...request, status: 'ไม่อนุมัติ (อาจารย์)', advisor_comment: rejectModal.reason.trim() }
+          : request
+      )));
+      setToast({ open: true, message: `ปฏิเสธคำร้องของ ${rejectedRequest?.studentName || 'นักศึกษา'} แล้ว`, severity: 'info' });
+    } catch (err) {
+      setToast({ open: true, message: 'อัปเดตล้มเหลว: ' + (err.response?.data?.message || err.message), severity: 'error' });
+    }
     setRejectModal({ open: false, requestId: null, reason: '' });
   };
 
@@ -250,6 +259,7 @@ const AdvisorDashboardPage = () => {
                   <TableCell>บริษัท</TableCell>
                   <TableCell>ตำแหน่ง</TableCell>
                   <TableCell>สถานะ</TableCell>
+                  <TableCell>ตรวจสอบ</TableCell>
                   <TableCell>จัดการ</TableCell>
                 </TableRow>
               </TableHead>
@@ -268,6 +278,17 @@ const AdvisorDashboardPage = () => {
                         <span className="status-badge" style={{ background: statusStyle.bg, color: statusStyle.color }}>
                           {displayStatus}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          component={Link}
+                          to={`/dashboard/request/${request.id}`}
+                          variant="outlined"
+                          size="small"
+                          sx={{ borderRadius: 999, fontWeight: 600 }}
+                        >
+                          ตรวจสอบ
+                        </Button>
                       </TableCell>
                       <TableCell className="action-column">
                         {isPending ? (

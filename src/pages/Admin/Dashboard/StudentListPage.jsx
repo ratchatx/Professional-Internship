@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import asyncStorage from '../../../utils/asyncStorage';
 import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, MenuItem } from '@mui/material';
 import './AdminDashboardPage.css'; // Reusing admin styles for sidebar
 import './StudentListPage.css';
@@ -25,6 +24,16 @@ const StudentListPage = () => {
   const [loading, setLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
+  const getToken = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      return user?.token || '';
+    } catch {
+      return '';
+    }
+  };
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -43,22 +52,18 @@ const StudentListPage = () => {
 
       // Load students
       try {
-        const usersJson = await asyncStorage.getItem('users');
-        const allUsers = usersJson ? JSON.parse(usersJson) : [];
-        const studentList = allUsers.filter(u => u.role === 'student');
-        
-        // Add some mock data if empty for demo purposes
-        if (studentList.length === 0) {
-            const mockStudents = [
-                { student_code: '65000001', full_name: 'สมชาย ใจดี', major: 'วิศวกรรมคอมพิวเตอร์', email: 'somchai@example.com', phone: '081-111-1111' },
-                { student_code: '65000002', full_name: 'สมหญิง รักเรียน', major: 'วิศวกรรมไฟฟ้า', email: 'somying@example.com', phone: '082-222-2222' }
-            ];
-            setStudents(mockStudents);
-            // Optionally save them back so they persist
-            // await asyncStorage.setItem('users', JSON.stringify(mockStudents.map(s => ({...s, role: 'student'}))));
-        } else {
-            setStudents(studentList);
+        const res = await fetch(`${API_BASE}/users?role=student`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`,
+          },
+        });
+        if (!res.ok) {
+          throw new Error('ไม่สามารถโหลดรายชื่อนักศึกษาได้');
         }
+        const data = await res.json();
+        const studentList = data.data || [];
+        setStudents(studentList);
       } catch (error) {
         console.error("Failed to load students", error);
       } finally {
@@ -106,6 +111,9 @@ const StudentListPage = () => {
           </Link>
           <Link to="/admin-dashboard/checkins" className="nav-item">
             <span>เช็คชื่อรายวัน</span>
+          </Link>
+          <Link to="/admin-dashboard/attendance-overview" className="nav-item">
+            <span>ภาพรวมรายบุคคล</span>
           </Link>
           <Link to="/admin-dashboard/reports" className="nav-item">
             <span>รายงาน</span>

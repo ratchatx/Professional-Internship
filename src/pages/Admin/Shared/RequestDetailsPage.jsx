@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Snackbar, Alert as MuiAlert } from '@mui/material';
+import api from '../../../api/axios';
 import './RequestDetailsPage.css';
 
 const RequestDetailsPage = () => {
@@ -22,22 +23,24 @@ const RequestDetailsPage = () => {
     const user = JSON.parse(userStr);
     setUserRole(user.role);
 
-    // 2. Load Request Details
-    const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-    const foundRequest = allRequests.find(r => r.id.toString() === id);
-
-    if (foundRequest) {
-      setRequest(foundRequest);
-    } else {
+    // 2. Load Request Details from API
+    api.get(`/requests/${id}`).then(res => {
+      if (res.data.data) {
+        setRequest(res.data.data);
+      } else {
+        setToast({ open: true, message: 'ไม่พบข้อมูลคำร้อง', severity: 'error' });
+        navigate(-1);
+      }
+      setLoading(false);
+    }).catch(err => {
+      console.error('Failed to load request:', err);
       setToast({ open: true, message: 'ไม่พบข้อมูลคำร้อง', severity: 'error' });
+      setLoading(false);
       navigate(-1);
-    }
-    setLoading(false);
+    });
   }, [id, navigate]);
 
-  const handleApprove = () => {
-    const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-    let updatedRequests = [];
+  const handleApprove = async () => {
     let newStatus = '';
     let alertMsg = 'อนุมัติคำร้องเรียบร้อยแล้ว';
 
@@ -52,13 +55,14 @@ const RequestDetailsPage = () => {
     }
 
     if (newStatus) {
-      updatedRequests = allRequests.map(r => 
-        r.id.toString() === id ? { ...r, status: newStatus } : r
-      );
-      localStorage.setItem('requests', JSON.stringify(updatedRequests));
-      setRequest({ ...request, status: newStatus });
-      setToast({ open: true, message: alertMsg, severity: 'success' });
-      navigate(-1);
+      try {
+        await api.patch(`/requests/${id}/status`, { status: newStatus });
+        setRequest({ ...request, status: newStatus });
+        setToast({ open: true, message: alertMsg, severity: 'success' });
+        navigate(-1);
+      } catch (err) {
+        setToast({ open: true, message: 'อัปเดตล้มเหลว: ' + (err.response?.data?.message || err.message), severity: 'error' });
+      }
     }
   };
 
@@ -66,15 +70,13 @@ const RequestDetailsPage = () => {
     setRejectModal({ open: true, reason: '' });
   };
 
-  const handleRejectConfirm = () => {
+  const handleRejectConfirm = async () => {
     if (!rejectModal.reason.trim()) {
       setToast({ open: true, message: 'กรุณาระบุเหตุผลที่ไม่อนุมัติ/ปฏิเสธ', severity: 'warning' });
       return;
     }
 
-    const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
     let newStatus = '';
-
     if (userRole === 'advisor') {
       newStatus = 'ไม่อนุมัติ (อาจารย์)';
     } else if (userRole === 'admin') {
@@ -85,14 +87,16 @@ const RequestDetailsPage = () => {
 
     if (newStatus) {
       const reason = rejectModal.reason.trim();
-      const updatedRequests = allRequests.map(r => 
-        r.id.toString() === id ? { ...r, status: newStatus, rejectReason: reason } : r
-      );
-      localStorage.setItem('requests', JSON.stringify(updatedRequests));
-      setRequest({ ...request, status: newStatus, rejectReason: reason });
-      setToast({ open: true, message: 'บันทึกผลการไม่อนุมัติ/ปฏิเสธเรียบร้อย', severity: 'info' });
-      setRejectModal({ open: false, reason: '' });
-      navigate(-1);
+      try {
+        const commentField = userRole === 'advisor' ? 'advisor_comment' : 'admin_comment';
+        await api.patch(`/requests/${id}/status`, { status: newStatus, [commentField]: reason });
+        setRequest({ ...request, status: newStatus, rejectReason: reason });
+        setToast({ open: true, message: 'บันทึกผลการไม่อนุมัติ/ปฏิเสธเรียบร้อย', severity: 'info' });
+        setRejectModal({ open: false, reason: '' });
+        navigate(-1);
+      } catch (err) {
+        setToast({ open: true, message: 'อัปเดตล้มเหลว: ' + (err.response?.data?.message || err.message), severity: 'error' });
+      }
     }
   };
 
@@ -115,10 +119,28 @@ const RequestDetailsPage = () => {
     return { ...style, label: status };
   };
 
+  const formatAddress = (address) => {
+    if (!address) return '-';
+    if (typeof address === 'string') return address;
+
+    const parts = [];
+    if (address.house) parts.push(`บ้านเลขที่ ${address.house}`);
+    if (address.moo) parts.push(`หมู่ ${address.moo}`);
+    if (address.tambon) parts.push(`ตำบล ${address.tambon}`);
+    if (address.amphur) parts.push(`อำเภอ ${address.amphur}`);
+    if (address.province) parts.push(`จังหวัด ${address.province}`);
+    if (address.postal) parts.push(`รหัสไปรษณีย์ ${address.postal}`);
+    if (address.detail) parts.push(address.detail);
+
+    return parts.length ? parts.join(' ') : '-';
+  };
+
   if (loading || !request) return <div className="loading">กำลังโหลดข้อมูล...</div>;
 
   const statusInfo = getStatusBadge(request.status);
   const details = request.details || {}; // Fields from NewRequestPage payload
+  const studentAddress = formatAddress(details.student_info?.address);
+  const companyAddress = formatAddress(details.companyAddress || details.address);
 
   // Determine if current user can execute actions
   const canApprove = (userRole === 'advisor' && request.status === 'รออาจารย์ที่ปรึกษาอนุมัติ') ||
@@ -159,6 +181,12 @@ const RequestDetailsPage = () => {
                 <span className="detail-value">{details.student_info.lastSemesterGrade}</span>
               </div>
             )}
+            {studentAddress && studentAddress !== '-' && (
+              <div className="detail-item">
+                <span className="detail-label">ที่อยู่ตามบัตรประชาชน</span>
+                <span className="detail-value">{studentAddress}</span>
+              </div>
+            )}
              <div className="detail-item">
               <span className="detail-label">วันที่ยื่นคำร้อง</span>
               <span className="detail-value">{new Date(request.submittedDate).toLocaleDateString('th-TH')}</span>
@@ -179,7 +207,7 @@ const RequestDetailsPage = () => {
             </div>
             <div className="detail-item">
               <span className="detail-label">ที่อยู่บริษัท</span>
-              <span className="detail-value">{details.address || '-'}</span>
+              <span className="detail-value">{companyAddress}</span>
             </div>
           </div>
         </section>
@@ -189,7 +217,7 @@ const RequestDetailsPage = () => {
           <div className="detail-grid">
             <div className="detail-item">
               <span className="detail-label">วันเริ่มฝึกงาน</span>
-              <span className="detail-value">{details.startDate ? new Date(details.startDate).toLocaleDateString('th-TH') : '-'}</span>
+              <span className="detail-value">{details.startDate ? new Date(details.startDate).toLocaleDateString('th-TH') : (request.submittedDate ? new Date(request.submittedDate).toLocaleDateString('th-TH') : '-')}</span>
             </div>
             <div className="detail-item">
               <span className="detail-label">วันสิ้นสุดการฝึกงาน</span>

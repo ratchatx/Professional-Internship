@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../../../api/axios';
 import * as am5 from '@amcharts/amcharts5';
 import * as am5percent from '@amcharts/amcharts5/percent';
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated';
@@ -59,9 +60,10 @@ const AdminDashboardPage = () => {
       }
       setAdminName(user.name);
       
-      // Load requests
-      const storedRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-      setAllRequests(storedRequests);
+      // Load requests from API
+      api.get('/requests').then(res => {
+        setAllRequests(res.data.data || []);
+      }).catch(err => console.error('Failed to load requests:', err));
     } else {
       navigate('/login');
     }
@@ -135,6 +137,8 @@ const AdminDashboardPage = () => {
       }));
   }, [summaryCards]);
 
+  const hasChartData = useMemo(() => statusChartData.some((item) => item.value > 0), [statusChartData]);
+
   const latestRequests = useMemo(() => {
     return allRequests
       .slice()
@@ -174,7 +178,7 @@ const AdminDashboardPage = () => {
   }, [statusCounts]);
 
   useLayoutEffect(() => {
-    if (!pieChartRef.current) return undefined;
+    if (!pieChartRef.current || !hasChartData) return undefined;
 
     const root = am5.Root.new(pieChartRef.current);
     root.setThemes([am5themes_Animated.new(root)]);
@@ -210,7 +214,7 @@ const AdminDashboardPage = () => {
     return () => {
       root.dispose();
     };
-  }, [statusChartData]);
+  }, [statusChartData, hasChartData]);
 
   const handleDelete = async (id) => {
     const confirmed = await window.showMuiConfirm('คุณต้องการลบคำร้องนี้ใช่หรือไม่?', {
@@ -220,46 +224,60 @@ const AdminDashboardPage = () => {
     });
 
     if (!confirmed) return;
-    const updatedRequests = allRequests.filter((req) => req.id !== id);
-    setAllRequests(updatedRequests);
-    localStorage.setItem('requests', JSON.stringify(updatedRequests));
+    try {
+      await api.delete(`/requests/${id}`);
+      setAllRequests(allRequests.filter((req) => String(req.id) !== String(id)));
+    } catch (err) {
+      alert('ลบคำร้องล้มเหลว: ' + (err.response?.data?.message || err.message));
+    }
   };
 
 
-  const handleApprove = (requestId) => {
-    // Step 3: Admin check -> Send to Company
+  const handleApprove = async (requestId) => {
     const newStatus = 'รอสถานประกอบการตอบรับ';
-    const updated = allRequests.map(r => r.id === requestId ? {...r, status: newStatus} : r);
-    setAllRequests(updated);
-    localStorage.setItem('requests', JSON.stringify(updated));
-    alert(`ตรวจสอบและส่งคำขอไปยังสถานประกอบการเรียบร้อยแล้ว (สถานะ: ${newStatus})`);
+    try {
+      await api.patch(`/requests/${requestId}/status`, { status: newStatus });
+      setAllRequests(allRequests.map(r => String(r.id) === String(requestId) ? {...r, status: newStatus} : r));
+      alert(`ตรวจสอบและส่งคำขอไปยังสถานประกอบการเรียบร้อยแล้ว (สถานะ: ${newStatus})`);
+    } catch (err) {
+      alert('อัปเดตสถานะล้มเหลว: ' + (err.response?.data?.message || err.message));
+    }
   };
 
-  const handleUpdateStatus = (requestId, newStatus) => {
-     const updated = allRequests.map(r => r.id === requestId ? {...r, status: newStatus} : r);
-     setAllRequests(updated);
-     localStorage.setItem('requests', JSON.stringify(updated));
-     alert(`อัปเดตสถานะเป็น "${newStatus}" เรียบร้อยแล้ว`);
+  const handleUpdateStatus = async (requestId, newStatus) => {
+    try {
+      await api.patch(`/requests/${requestId}/status`, { status: newStatus });
+      setAllRequests(allRequests.map(r => String(r.id) === String(requestId) ? {...r, status: newStatus} : r));
+      alert(`อัปเดตสถานะเป็น "${newStatus}" เรียบร้อยแล้ว`);
+    } catch (err) {
+      alert('อัปเดตสถานะล้มเหลว: ' + (err.response?.data?.message || err.message));
+    }
   };
 
   const handleReject = (requestId) => {
     setRejectModal({ open: true, requestId, reason: '' });
   };
 
-  const handleRejectConfirm = () => {
+  const handleRejectConfirm = async () => {
     if (!rejectModal.reason.trim()) {
       alert('กรุณาระบุเหตุผลที่ไม่อนุมัติ');
       return;
     }
 
-    const updated = allRequests.map(r =>
-      r.id === rejectModal.requestId
-        ? { ...r, status: 'ไม่อนุมัติ (Admin)', rejectReason: rejectModal.reason.trim() }
-        : r
-    );
-    setAllRequests(updated);
-    localStorage.setItem('requests', JSON.stringify(updated));
-    alert(`ไม่อนุมัติคำร้องเลขที่ ${rejectModal.requestId}`);
+    try {
+      await api.patch(`/requests/${rejectModal.requestId}/status`, {
+        status: 'ไม่อนุมัติ (Admin)',
+        admin_comment: rejectModal.reason.trim(),
+      });
+      setAllRequests(allRequests.map(r =>
+        String(r.id) === String(rejectModal.requestId)
+          ? { ...r, status: 'ไม่อนุมัติ (Admin)', admin_comment: rejectModal.reason.trim() }
+          : r
+      ));
+      alert(`ไม่อนุมัติคำร้องเลขที่ ${rejectModal.requestId}`);
+    } catch (err) {
+      alert('อัปเดตสถานะล้มเหลว: ' + (err.response?.data?.message || err.message));
+    }
     setRejectModal({ open: false, requestId: null, reason: '' });
   };
 
@@ -307,6 +325,9 @@ const AdminDashboardPage = () => {
           </Link>
           <Link to="/admin-dashboard/checkins" className="nav-item">
             <span>เช็คชื่อรายวัน</span>
+          </Link>
+          <Link to="/admin-dashboard/attendance-overview" className="nav-item">
+            <span>ภาพรวมรายบุคคล</span>
           </Link>
           <Link to="/admin-dashboard/reports" className="nav-item">
             <span>รายงาน</span>
@@ -411,7 +432,26 @@ const AdminDashboardPage = () => {
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
               <Box>
                 <Typography variant="body2" sx={{ color: '#64748b', mb: 1 }}>Pie (amCharts)</Typography>
-                <Box ref={pieChartRef} className="dashboard-amchart" />
+                {hasChartData ? (
+                  <Box ref={pieChartRef} className="dashboard-amchart" />
+                ) : (
+                  <Box
+                    sx={{
+                      minHeight: 260,
+                      borderRadius: 2,
+                      border: '1px dashed #d1d5db',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#94a3b8',
+                      fontSize: 14,
+                      fontWeight: 500,
+                      background: '#f8fafc',
+                    }}
+                  >
+                    ยังไม่มีข้อมูลเพียงพอสำหรับสร้างกราฟ
+                  </Box>
+                )}
               </Box>
             </Box>
           </Paper>

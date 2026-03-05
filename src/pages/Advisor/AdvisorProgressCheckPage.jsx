@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../../api/axios';
 import {
   Box,
   Button,
@@ -43,18 +44,26 @@ const AdvisorProgressCheckPage = () => {
   const normalize = (value) => String(value || '').trim();
   const normalizeLower = (value) => String(value || '').trim().toLowerCase();
 
-  const loadData = (dept) => {
-    const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-    const allCheckins = JSON.parse(localStorage.getItem('daily_checkins') || '[]');
+  const loadData = async (dept) => {
+    try {
+      const [reqRes, checkinRes] = await Promise.all([
+        api.get('/requests'),
+        api.get('/checkins'),
+      ]);
+      const allRequests = reqRes.data.data || [];
+      const allCheckins = checkinRes.data.data || [];
 
-    const departmentRequests = allRequests.filter((request) => {
-      const requestDept = request.department || request.details?.student_info?.major || '';
-      const sameDept = dept ? requestDept === dept : true;
-      return sameDept && internshipStatuses.has(normalize(request.status));
-    });
+      const departmentRequests = allRequests.filter((request) => {
+        const requestDept = request.department || request.details?.student_info?.major || '';
+        const sameDept = dept ? requestDept === dept : true;
+        return sameDept && internshipStatuses.has(normalize(request.status));
+      });
 
-    setRequests(departmentRequests);
-    setCheckins(allCheckins);
+      setRequests(departmentRequests);
+      setCheckins(allCheckins);
+    } catch (err) {
+      console.error('Failed to load data:', err);
+    }
   };
 
   useEffect(() => {

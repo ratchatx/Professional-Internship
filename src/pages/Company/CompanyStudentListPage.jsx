@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../../api/axios';
 import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import { filterRequestsForCompanyUser, getCompanyDisplayName } from '../../utils/companyRequestFilter';
 import '../Admin/Dashboard/AdminDashboardPage.css'; // Reuse Admin styles
@@ -13,10 +14,15 @@ const CompanyStudentListPage = () => {
   const [sortBy, setSortBy] = useState('studentId');
   const [sortDir, setSortDir] = useState('asc');
 
-  const loadCompanyStudents = (user) => {
-    const storedRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-    const companyRequests = filterRequestsForCompanyUser(storedRequests, user);
-    setStudents(companyRequests);
+  const loadCompanyStudents = async (user) => {
+    try {
+      const res = await api.get('/requests');
+      const allReqs = res.data.data || [];
+      const companyRequests = filterRequestsForCompanyUser(allReqs, user);
+      setStudents(companyRequests);
+    } catch (err) {
+      console.error('Failed to load requests:', err);
+    }
   };
 
   useEffect(() => {

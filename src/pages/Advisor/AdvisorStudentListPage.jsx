@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../../api/axios';
 import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import '../Admin/Dashboard/AdminDashboardPage.css'; // Reuse styles
 import '../Admin/Dashboard/StudentListPage.css';
@@ -26,12 +27,10 @@ const AdvisorStudentListPage = () => {
         const myDept = user.department || user.major || 'วิศวกรรมคอมพิวเตอร์'; 
         setAdvisorDept(myDept);
 
-        const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-        const filteredRequests = allRequests.filter(req => {
-            return req.department === myDept;
-        });
-
-        setMyRequests(filteredRequests);
+        api.get('/requests').then(res => {
+            const allRequests = res.data.data || [];
+            setMyRequests(allRequests.filter(req => req.department === myDept));
+        }).catch(err => console.error('Failed to load requests:', err));
 
     }, [navigate]);
 

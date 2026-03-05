@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-// amCharts removed for Student Dashboard per request
+import api from '../../../api/axios';
 import './DashboardPage.css';
 import {
   Card,
@@ -23,6 +23,7 @@ const DashboardPage = () => {
   const [studentName, setStudentName] = useState('');
   const [studentAvatar, setStudentAvatar] = useState(null);
   const [internshipRequests, setInternshipRequests] = useState([]);
+  const [checkins, setCheckins] = useState([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   // chart refs removed
 
@@ -53,48 +54,18 @@ const DashboardPage = () => {
               setStudentName(user.full_name || user.name);
               setStudentAvatar(user.avatar);
         
-              // API Call Replaced with LocalStorage
-              // const response = await api.get(`/requests?student_id=${user.user_id}`);
+              const studentId = user.student_code || user.studentId || user.username;
+              const [requestsRes, checkinsRes] = await Promise.all([
+                api.get(`/requests?studentId=${studentId}`),
+                api.get(`/checkins?studentId=${studentId}`),
+              ]);
 
-              const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-              const studentKeys = [
-                user.student_code,
-                user.studentId,
-                user.username,
-                user.email,
-              ]
-                .map((value) => String(value || '').trim())
-                .filter(Boolean);
-
-              const isOwnRequest = (request) => {
-                const requestKeys = [
-                  request.studentId,
-                  request.student_code,
-                  request.username,
-                  request.email,
-                  request.details?.student_info?.studentId,
-                  request.details?.student_info?.email,
-                ]
-                  .map((value) => String(value || '').trim())
-                  .filter(Boolean);
-
-                return requestKeys.some((key) => studentKeys.includes(key));
-              };
-
-              const myRequests = allRequests.filter(isOwnRequest);
-
-              // Sort by date desc
-              myRequests.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
-
-              const mappedRequests = myRequests.map(req => {
-                  // Status is already in Thai/correct format in localStorage from NewRequest/Advisor pages
-                  return {
-                      ...req,
-                      companyName: req.company || req.companyName,
-                      // status is already correct
-                  };
-              });
-              setInternshipRequests(mappedRequests);
+              const myRequests = (requestsRes.data.data || []).map(req => ({
+                  ...req,
+                  companyName: req.company || req.companyName,
+              }));
+              setInternshipRequests(myRequests);
+              setCheckins(checkinsRes.data.data || []);
             } else {
               navigate('/login');
             }
@@ -222,7 +193,6 @@ const DashboardPage = () => {
   const internshipProgress = useMemo(() => {
     if (!currentRequest) return 0;
 
-    const checkins = JSON.parse(localStorage.getItem('daily_checkins') || '[]');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     return calculateInternshipProgressByCheckins({
       request: currentRequest,
@@ -230,7 +200,7 @@ const DashboardPage = () => {
       studentIds: [user.student_code, user.studentId, user.username, user.email],
       studentNames: [user.full_name, user.name]
     });
-  }, [currentRequest]);
+  }, [currentRequest, checkins]);
 
   const notifications = useMemo(() => {
     const list = [];
@@ -386,10 +356,15 @@ const DashboardPage = () => {
             <span className="mono-emoji progress-emoji" aria-hidden="true">📈︎</span>
             ความคืบหน้าการฝึกงาน
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.25 }}>
-            <span className="mono-emoji progress-emoji-inline" aria-hidden="true">⌛︎</span>
-            {' '}ฝึกงานไปแล้ว {internshipProgress}%
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.25, gap: 1 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <span className="mono-emoji progress-emoji-inline" aria-hidden="true">⌛︎</span>
+              ฝึกงานไปแล้ว {internshipProgress}%
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 700, color: '#111827' }}>
+              {internshipProgress}%
+            </Typography>
+          </Box>
           <LinearProgress variant="determinate" value={internshipProgress} sx={{ height: 10, borderRadius: 999 }} />
         </Paper>
 

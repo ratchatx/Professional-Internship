@@ -1,77 +1,127 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import asyncStorage from '../../../utils/asyncStorage';
+import api from '../../../api/axios';
 import '../../Student/Dashboard/DashboardPage.css';
 import '../../Student/NewRequestPage.css';
-import '../../Student/Dashboard/ProfilePage.css';
+import './RequestDetailsPage.css';
 
 const StudentDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState('');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [actionModal, setActionModal] = useState({
+    open: false,
+    status: '',
+    title: '',
+    description: '',
+    successMsg: '',
+  });
+  const [feedbackMessage, setFeedbackMessage] = useState(null);
 
   useEffect(() => {
     const load = async () => {
-      // Try to load from stored users
-      const usersRaw = await asyncStorage.getItem('users');
-      const users = usersRaw ? JSON.parse(usersRaw) : [];
-      let matched = users.find(u => u.student_code === id || u.username === id || u.studentId === id);
+      const userStr = localStorage.getItem('user');
+      if (!userStr) {
+        navigate('/login');
+        return;
+      }
+      try {
+        const parsed = JSON.parse(userStr);
+        setUserRole(parsed.role || '');
+      } catch {
+        setUserRole('');
+      }
 
       let info = null;
+      let requestInfo = null;
 
-      if (matched) {
+      // Load student request details first (contains full profile)
+      try {
+        const reqRes = await api.get(`/requests?studentId=${id}`);
+        const reqs = reqRes.data.data || [];
+        const req = reqs[0];
+        if (req) {
+          const s = req.details?.student_info || {};
+          requestInfo = {
+            studentId: req.studentId || s.studentId || '',
+            title: s.title || '',
+            name: s.name || req.studentName || '',
+            email: s.email || req.studentEmail || '',
+            year: s.year || '',
+            lastSemesterGrade: s.lastSemesterGrade || '',
+            major: s.major || req.department || '',
+            phone: s.phone || '',
+            homeHouse: s.address?.house || '',
+            homeMoo: s.address?.moo || '',
+            homeTambon: s.address?.tambon || '',
+            homeAmphur: s.address?.amphur || '',
+            homeProvince: s.address?.province || '',
+            homePostal: s.address?.postal || '',
+            studentPhoto: req.details?.studentPhoto || null,
+            raw: req,
+          };
+        }
+      } catch (err) {
+        console.error('Failed to load requests:', err);
+      }
+
+      // Try to load from users API for baseline info (may require admin token)
+      try {
+        const usersRes = await api.get('/users');
+        const users = usersRes.data.data || [];
+        const matched = users.find((u) => u.student_code === id || u.username === id || u.studentId === id);
+
+        if (matched) {
+          info = {
+            studentId: matched.student_code || matched.studentId || matched.username,
+            title: matched.title || '',
+            name: matched.full_name || matched.name || '',
+            email: matched.email || '',
+            year: matched.year || '',
+            lastSemesterGrade: matched.lastSemesterGrade || '',
+            major: matched.major || matched.department || '',
+            phone: matched.phone || '',
+            homeHouse: '',
+            homeMoo: '',
+            homeTambon: '',
+            homeAmphur: '',
+            homeProvince: '',
+            homePostal: '',
+            studentPhoto: matched.avatar || null,
+            raw: matched,
+          };
+        }
+      } catch (err) {
+        console.error('Failed to load users:', err);
+      }
+
+      // Merge in request info to fill missing fields
+      if (requestInfo) {
         info = {
-          studentId: matched.student_code || matched.studentId || matched.username,
-          title: matched.title || matched.studentTitle || '',
-          name: matched.full_name || matched.name || matched.studentName || '',
-          email: matched.email || matched.studentEmail || '',
-          year: matched.year || matched.studentYear || '',
-          lastSemesterGrade: matched.lastSemesterGrade || '',
-          major: matched.major || matched.studentMajor || matched.department || '',
-          faculty: matched.faculty || matched.studentFaculty || '',
-          phone: matched.phone || matched.studentPhone || '',
-          homeHouse: matched.homeHouse || matched.home_house || '',
-          homeMoo: matched.homeMoo || matched.home_moo || '',
-          homeTambon: matched.homeTambon || matched.home_tambon || '',
-          homeAmphur: matched.homeAmphur || matched.home_amphur || '',
-          homeProvince: matched.homeProvince || matched.home_province || '',
-          homePostal: matched.homePostal || matched.home_postal || '',
-          studentPhoto: matched.studentPhoto || matched.photo || null,
-          raw: matched
+          ...(info || {}),
+          ...['studentId', 'title', 'name', 'email', 'major'].reduce((acc, key) => {
+            acc[key] = requestInfo[key] || info?.[key] || '';
+            return acc;
+          }, {}),
+          year: info?.year || requestInfo.year || '',
+          lastSemesterGrade: info?.lastSemesterGrade || requestInfo.lastSemesterGrade || '',
+          phone: info?.phone || requestInfo.phone || '',
+          homeHouse: info?.homeHouse || requestInfo.homeHouse || '',
+          homeMoo: info?.homeMoo || requestInfo.homeMoo || '',
+          homeTambon: info?.homeTambon || requestInfo.homeTambon || '',
+          homeAmphur: info?.homeAmphur || requestInfo.homeAmphur || '',
+          homeProvince: info?.homeProvince || requestInfo.homeProvince || '',
+          homePostal: info?.homePostal || requestInfo.homePostal || '',
+          studentPhoto: info?.studentPhoto || requestInfo.studentPhoto || null,
+          raw: info?.raw || requestInfo.raw,
+          requestRaw: requestInfo.raw || null,
         };
       }
 
-      // If not found in users, try to pull from requests localStorage (older demos store details there)
-      if (!info) {
-        const requestsRaw = localStorage.getItem('requests');
-        const requests = requestsRaw ? JSON.parse(requestsRaw) : [];
-        const req = requests.find(r => r.studentId === id || (r.details && r.details.student_info && (r.details.student_info.studentId === id || r.details.student_info.studentId === id)));
-        if (req) {
-          const s = req.details && req.details.student_info ? req.details.student_info : {};
-          info = {
-            studentId: req.studentId || s.studentId || s.studentId,
-            title: s.title || s.studentTitle || '',
-            name: s.name || req.studentName || s.full_name || '',
-            email: s.email || s.studentEmail || req.contactEmail || '',
-            year: s.year || s.studentYear || '',
-            lastSemesterGrade: s.lastSemesterGrade || '',
-            major: s.major || s.studentMajor || req.department || '',
-            faculty: s.faculty || s.studentFaculty || '',
-            phone: s.phone || s.studentPhone || req.studentPhone || '',
-            homeHouse: s.homeHouse || s.home_house || '',
-            homeMoo: s.homeMoo || s.home_moo || '',
-            homeTambon: s.homeTambon || s.home_tambon || '',
-            homeAmphur: s.homeAmphur || s.home_amphur || '',
-            homeProvince: s.homeProvince || s.home_province || '',
-            homePostal: s.homePostal || s.home_postal || '',
-            studentPhoto: (req.details && req.details.studentPhoto) || req.studentPhoto || (s.studentPhoto || null),
-            raw: req
-          };
-        }
-      }
-
-      setStudent(info || null);
+      setStudent({ ...(info || requestInfo || {}), requestRaw: requestInfo?.raw || info?.requestRaw || null });
       setLoading(false);
     };
     load();
@@ -85,92 +135,223 @@ const StudentDetailsPage = () => {
     </div>
   );
 
+  const formatAddress = () => {
+    const parts = [];
+    if (student.homeHouse) parts.push(`บ้านเลขที่ ${student.homeHouse}`);
+    if (student.homeMoo) parts.push(`หมู่ ${student.homeMoo}`);
+    if (student.homeTambon) parts.push(`ตำบล ${student.homeTambon}`);
+    if (student.homeAmphur) parts.push(`อำเภอ ${student.homeAmphur}`);
+    if (student.homeProvince) parts.push(`จังหวัด ${student.homeProvince}`);
+    if (student.homePostal) parts.push(`รหัส ${student.homePostal}`);
+    return parts.length ? parts.join(' ') : '-';
+  };
+
+  const requestDetails = student.requestRaw || null;
+  const details = requestDetails?.details || {};
+  const desiredPosition = {
+    company: details.companyName || requestDetails?.company || '-',
+    position: details.position || requestDetails?.position || '-',
+    startDate: details.startDate || requestDetails?.startDate || '',
+    endDate: details.endDate || requestDetails?.endDate || '',
+    description: details.description || '-',
+    skills: details.skills || '-',
+  };
+
+  const formatDate = (value) => {
+    if (!value) return '-';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? '-' : d.toLocaleDateString('th-TH');
+  };
+
+  const requestId = student.requestRaw?.id;
+  const canCompanyRespond =
+    userRole === 'company' && requestId && student.requestRaw?.status === 'รอสถานประกอบการตอบรับ';
+
+  const updateRequestStatus = async (newStatus, successMsg) => {
+    if (!requestId) return;
+    setIsUpdatingStatus(true);
+    try {
+      await api.patch(`/requests/${requestId}/status`, { status: newStatus });
+      setStudent((prev) => (
+        prev
+          ? {
+              ...prev,
+              requestRaw: {
+                ...(prev.requestRaw || {}),
+                status: newStatus,
+              },
+            }
+          : prev
+      ));
+      setFeedbackMessage(successMsg);
+      setActionModal((prev) => ({ ...prev, open: false }));
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      setFeedbackMessage(error.response?.data?.message || 'อัปเดตสถานะไม่สำเร็จ');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const openActionModal = (status, title, description, successMsg) => {
+    setActionModal({ open: true, status, title, description, successMsg });
+  };
+
   return (
-    <div className="dashboard-container">
-      <aside className="sidebar" />
-      <main className="dashboard-main">
-        <div className="new-request-header">
-          <h1>ข้อมูลนักศึกษา</h1>
-          <p>รายละเอียดของนักศึกษา</p>
-        </div>
+    <div className="request-details-container">
+      <div className="details-card">
+        <header className="details-header">
+          <div>
+            <h2>ข้อมูลนักศึกษา</h2>
+            <p style={{ color: '#718096', marginTop: '5px' }}>รหัสนักศึกษา: {student.studentId || '-'}</p>
+          </div>
+        </header>
 
-        <div className="request-form" style={{ maxWidth: 900 }}>
-          <div className="form-section">
-            <h2>ข้อมูลพื้นฐาน</h2>
-            <div className="form-row">
-              <div className="form-group">
-                <label>รหัสนักศึกษา</label>
-                <div>{student.studentId || '-'}</div>
-              </div>
-              <div className="form-group">
-                <label>ชื่อ-นามสกุล</label>
-                <div>{(student.title ? student.title + ' ' : '') + (student.name || '-')}</div>
-              </div>
+        <section className="detail-section">
+          <h3>ข้อมูลพื้นฐาน</h3>
+          <div className="detail-grid">
+            <div className="detail-item">
+              <span className="detail-label">ชื่อ-นามสกุล</span>
+              <span className="detail-value">{(student.title ? `${student.title} ` : '') + (student.name || '-')}</span>
             </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>สาขา</label>
-                <div>{student.major || '-'}</div>
-              </div>
-              <div className="form-group">
-                <label>อีเมล</label>
-                <div>{student.email || '-'}</div>
-              </div>
+            <div className="detail-item">
+              <span className="detail-label">สาขา</span>
+              <span className="detail-value">{student.major || '-'}</span>
             </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>ชั้นปี</label>
-                <div>{student.year || '-'}</div>
-              </div>
-              <div className="form-group">
-                <label>คณะ</label>
-                <div>{student.faculty || '-'}</div>
-              </div>
+            <div className="detail-item">
+              <span className="detail-label">ปี/ชั้นปี</span>
+              <span className="detail-value">{student.year || '-'}</span>
             </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label>เกรดเฉลี่ยเทอมล่าสุด</label>
-                <div>{student.lastSemesterGrade || '-'}</div>
-              </div>
+            <div className="detail-item">
+              <span className="detail-label">เกรดเฉลี่ยเทอมล่าสุด</span>
+              <span className="detail-value">{student.lastSemesterGrade || '-'}</span>
             </div>
+          </div>
+        </section>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label>เบอร์ติดต่อ</label>
-                <div>{student.phone || '-'}</div>
-              </div>
-              <div className="form-group">
-                <label>ที่อยู่</label>
-                <div>{(student.homeHouse || student.homeMoo || student.homeTambon || student.homeAmphur || student.homeProvince) ? `${student.homeHouse || ''} ${student.homeMoo ? 'หมู่' + student.homeMoo : ''} ${student.homeTambon || ''} ${student.homeAmphur || ''} ${student.homeProvince || ''}` : '-'}</div>
-              </div>
+        <section className="detail-section">
+          <h3>ช่องทางติดต่อ</h3>
+          <div className="detail-grid">
+            <div className="detail-item">
+              <span className="detail-label">อีเมล</span>
+              <span className="detail-value">{student.email || '-'}</span>
             </div>
+            <div className="detail-item">
+              <span className="detail-label">เบอร์โทรศัพท์</span>
+              <span className="detail-value">{student.phone || '-'}</span>
+            </div>
+            <div className="detail-item" style={{ gridColumn: 'span 2' }}>
+              <span className="detail-label">ที่อยู่</span>
+              <span className="detail-value">{formatAddress()}</span>
+            </div>
+          </div>
+        </section>
 
-            {student.studentPhoto && (
-              <div className="form-row">
-                <div className="form-group">
-                  <label>รูปถ่าย (PDF)</label>
-                  <div>
-                    {typeof student.studentPhoto === 'string' && student.studentPhoto.startsWith('data:') ? (
-                      <a href={student.studentPhoto} target="_blank" rel="noreferrer" download={`${student.studentId || 'student_photo'}.pdf`}>ดาวน์โหลด/เปิดไฟล์ PDF</a>
-                    ) : student.studentPhoto && student.studentPhoto.data ? (
-                      <a href={student.studentPhoto.data} target="_blank" rel="noreferrer" download={student.studentPhoto.name || `${student.studentId || 'student_photo'}.pdf`}>ดาวน์โหลด/เปิดไฟล์ PDF</a>
-                    ) : (
-                      <span>-</span>
-                    )}
-                  </div>
-                </div>
-              </div>
+        <section className="detail-section">
+          <h3>ตำแหน่งที่ต้องการฝึก</h3>
+          <div className="detail-grid">
+            <div className="detail-item">
+              <span className="detail-label">ชื่อบริษัท/องค์กร</span>
+              <span className="detail-value">{desiredPosition.company}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">ตำแหน่ง</span>
+              <span className="detail-value">{desiredPosition.position}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">วันที่เริ่มฝึก</span>
+              <span className="detail-value">{formatDate(desiredPosition.startDate)}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">วันที่สิ้นสุด</span>
+              <span className="detail-value">{formatDate(desiredPosition.endDate)}</span>
+            </div>
+          </div>
+          <div className="detail-item" style={{ marginTop: 12 }}>
+            <span className="detail-label">รายละเอียดงาน</span>
+            <p className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>{desiredPosition.description}</p>
+          </div>
+          <div className="detail-item" style={{ marginTop: 8 }}>
+            <span className="detail-label">ทักษะที่เกี่ยวข้อง</span>
+            <p className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>{desiredPosition.skills}</p>
+          </div>
+        </section>
+
+        <footer className="actions-footer">
+          <button type="button" className="btn-back" onClick={() => navigate(-1)}>
+            ย้อนกลับ
+          </button>
+          <div className="actions-right" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {canCompanyRespond && (
+              <>
+                <button
+                  type="button"
+                  className="btn-reject-lg"
+                  disabled={isUpdatingStatus}
+                  onClick={() =>
+                    openActionModal(
+                      'ปฏิเสธ',
+                      'ยืนยันการปฏิเสธนักศึกษารายนี้?',
+                      'เมื่อตอบ "ยืนยัน" สถานะคำร้องจะถูกเปลี่ยนเป็น "ปฏิเสธ"',
+                      'ปฏิเสธคำร้องเรียบร้อย'
+                    )
+                  }
+                >
+                  ยกเลิก (ไม่รับ)
+                </button>
+                <button
+                  type="button"
+                  className="btn-approve-lg"
+                  disabled={isUpdatingStatus}
+                  onClick={() =>
+                    openActionModal(
+                      'อนุมัติแล้ว',
+                      'ตอบรับนักศึกษารายนี้?',
+                      'หลังยืนยัน ระบบจะแจ้งว่านักศึกษาถูกตอบรับเข้าฝึกงานเรียบร้อย',
+                      'ตอบรับนักศึกษาเรียบร้อย'
+                    )
+                  }
+                >
+                  ตอบรับนักศึกษา
+                </button>
+              </>
             )}
+          </div>
+        </footer>
+        {feedbackMessage && (
+          <div style={{ marginTop: '18px', padding: '10px 16px', borderRadius: '12px', background: '#ecfccb', color: '#3f6212' }}>
+            {feedbackMessage}
+          </div>
+        )}
+      </div>
 
-            <div style={{ display: 'flex', gap: 12, marginTop: 18 }}>
-              <button type="button" className="btn-cancel" onClick={() => navigate(-1)}>ปิด</button>
+      {actionModal.open && (
+        <div className="modal-overlay">
+          <div className="modal-content action-modal" role="dialog" aria-modal="true">
+            <div className="modal-header">
+              <h2>{actionModal.title}</h2>
+              <button className="close-btn" onClick={() => setActionModal((prev) => ({ ...prev, open: false }))}>
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>{actionModal.description}</p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setActionModal((prev) => ({ ...prev, open: false }))}>
+                ยกเลิก
+              </button>
+              <button
+                className="btn-submit"
+                onClick={() => updateRequestStatus(actionModal.status, actionModal.successMsg)}
+                disabled={isUpdatingStatus}
+              >
+                ยืนยัน
+              </button>
             </div>
           </div>
         </div>
-      </main>
+      )}
     </div>
   );
 };

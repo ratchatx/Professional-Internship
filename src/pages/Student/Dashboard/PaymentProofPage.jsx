@@ -51,38 +51,22 @@ const PaymentProofPage = () => {
     if (!file) return;
 
     setUploading(true);
-    // Simulate upload
     try {
       const slipDataUrl = await toDataUrl(file);
+      const user = JSON.parse(localStorage.getItem('user'));
 
-        // In reality, use FormData to send file
-        // const formData = new FormData();
-        // formData.append('receipt', file);
-        // await api.post('/upload-receipt', formData);
+      await api.post('/payments', {
+        studentId: user.student_code || user.studentId || user.username || '65xxxxx',
+        studentName: user.full_name || user.name || 'นักศึกษา',
+        date: new Date().toLocaleDateString('th-TH'),
+        department: user.department || user.major || 'ไม่ระบุ',
+        slipDataUrl,
+        slipFileName: file.name
+      });
 
-        // Create mock payment object and save to localStorage for Admin view
-        const user = JSON.parse(localStorage.getItem('user'));
-        const newPayment = {
-             id: Date.now(),
-             studentId: user.student_code || user.username || '65xxxxx',
-             studentName: user.full_name || user.name || 'นักศึกษา',
-             date: new Date().toLocaleDateString('th-TH'),
-             status: 'pending',
-             department: user.department || user.major || 'ไม่ระบุ',
-             slipDataUrl,
-             slipFileName: file.name
-        };
-        
-        const existingPayments = JSON.parse(localStorage.getItem('payment_proofs') || '[]');
-        existingPayments.push(newPayment);
-        localStorage.setItem('payment_proofs', JSON.stringify(existingPayments));
-
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Mock delay
-        setUploadStatus('success');
-        setFile(null);
-        setPreviewUrl(null);
-        
-        setUploadStatus('success');
+      setUploadStatus('success');
+      setFile(null);
+      setPreviewUrl(null);
     } catch (error) {
         console.error(error);
         setUploadStatus('error');

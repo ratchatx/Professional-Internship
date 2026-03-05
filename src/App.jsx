@@ -23,6 +23,7 @@ import RequestDetailsPage from './pages/Admin/Shared/RequestDetailsPage';
 import StudentDetailsPage from './pages/Admin/Shared/StudentDetailsPage';
 import StudentCheckInPage from './pages/Student/Dashboard/StudentCheckInPage';
 import AdminCheckInPage from './pages/Admin/Dashboard/AdminCheckInPage';
+import AdminAttendanceOverviewPage from './pages/Admin/Dashboard/AdminAttendanceOverviewPage';
 import './App.css';
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
         <Route path="/admin-dashboard/users" element={<AdminUserManagementPage />} />
         <Route path="/admin-dashboard/payments" element={<AdminPaymentCheckPage />} />
         <Route path="/admin-dashboard/checkins" element={<AdminCheckInPage />} />
+        <Route path="/admin-dashboard/attendance-overview" element={<AdminAttendanceOverviewPage />} />
         <Route path="/admin-dashboard/reports" element={<AdminReportsPage />} />
         <Route path="/admin-dashboard/profile" element={<AdminProfilePage />} />
         <Route path="/advisor-dashboard" element={<AdvisorDashboardPage />} />

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../../api/axios';
 import {
   Paper,
   Box,
@@ -122,10 +123,15 @@ const CompanyDashboardPage = () => {
   });
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
-  const loadCompanyRequests = (user) => {
-    const storedRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-    const companyRequests = filterRequestsForCompanyUser(storedRequests, user);
-    setAllRequests(companyRequests);
+  const loadCompanyRequests = async (user) => {
+    try {
+      const res = await api.get('/requests');
+      const allReqs = res.data.data || [];
+      const companyRequests = filterRequestsForCompanyUser(allReqs, user);
+      setAllRequests(companyRequests);
+    } catch (err) {
+      console.error('Failed to load requests:', err);
+    }
   };
 
   useEffect(() => {
@@ -179,57 +185,54 @@ const CompanyDashboardPage = () => {
   const syncCompanyRequests = (updater) => {
     setAllRequests((prevCompanyRequests) => {
       const nextCompanyRequests = typeof updater === 'function' ? updater(prevCompanyRequests) : updater;
-      const allStoredRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-      const prevIds = new Set(prevCompanyRequests.map((req) => req.id));
-      const nextMap = new Map(nextCompanyRequests.map((req) => [req.id, req]));
-
-      const merged = allStoredRequests.map((request) => {
-        if (!prevIds.has(request.id)) return request;
-        return nextMap.get(request.id) || request;
-      });
-
-      nextCompanyRequests.forEach((request) => {
-        if (!merged.some((item) => item.id === request.id)) {
-          merged.push(request);
-        }
-      });
-
-      localStorage.setItem('requests', JSON.stringify(merged));
       return nextCompanyRequests;
     });
   };
 
-  const handleApprove = (requestId) => {
-    syncCompanyRequests((prev) => prev.map((request) => (
-      request.id === requestId
-        ? { ...request, status: 'อนุมัติแล้ว', companyRespondedAt: new Date().toISOString() }
-        : request
-    )));
-    openToast('อนุมัติคำขอเรียบร้อยแล้ว');
+  const handleApprove = async (requestId) => {
+    try {
+      await api.patch(`/requests/${requestId}/status`, { status: 'อนุมัติแล้ว' });
+      syncCompanyRequests((prev) => prev.map((request) => (
+        String(request.id) === String(requestId)
+          ? { ...request, status: 'อนุมัติแล้ว', companyRespondedAt: new Date().toISOString() }
+          : request
+      )));
+      openToast('อนุมัติคำขอเรียบร้อยแล้ว');
+    } catch (err) {
+      openToast('อัปเดตล้มเหลว: ' + (err.response?.data?.message || err.message), 'error');
+    }
   };
 
   const handleReject = (requestId) => {
     setRejectModal({ open: true, requestId, reason: '' });
   };
 
-  const handleRejectConfirm = () => {
+  const handleRejectConfirm = async () => {
     if (!rejectModal.reason.trim()) {
       openToast('กรุณาระบุเหตุผลที่ปฏิเสธ', 'warning');
       return;
     }
 
-    const rejectedRequest = allRequests.find((request) => request.id === rejectModal.requestId);
-    syncCompanyRequests((prev) => prev.map((request) => (
-      request.id === rejectModal.requestId
-        ? {
-          ...request,
-          status: 'ปฏิเสธ',
-          rejectReason: rejectModal.reason.trim(),
-          companyRespondedAt: new Date().toISOString(),
-        }
-        : request
-    )));
-    openToast(`ปฏิเสธคำขอของ ${rejectedRequest?.studentName || 'นักศึกษา'} แล้ว`, 'info');
+    const rejectedRequest = allRequests.find((request) => String(request.id) === String(rejectModal.requestId));
+    try {
+      await api.patch(`/requests/${rejectModal.requestId}/status`, {
+        status: 'ปฏิเสธ',
+        admin_comment: rejectModal.reason.trim(),
+      });
+      syncCompanyRequests((prev) => prev.map((request) => (
+        String(request.id) === String(rejectModal.requestId)
+          ? {
+            ...request,
+            status: 'ปฏิเสธ',
+            rejectReason: rejectModal.reason.trim(),
+            companyRespondedAt: new Date().toISOString(),
+          }
+          : request
+      )));
+      openToast(`ปฏิเสธคำขอของ ${rejectedRequest?.studentName || 'นักศึกษา'} แล้ว`, 'info');
+    } catch (err) {
+      openToast('อัปเดตล้มเหลว: ' + (err.response?.data?.message || err.message), 'error');
+    }
     setRejectModal({ open: false, requestId: null, reason: '' });
   };
 

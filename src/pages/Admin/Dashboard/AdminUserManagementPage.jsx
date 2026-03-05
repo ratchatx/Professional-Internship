@@ -1,8 +1,30 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import asyncStorage from '../../../utils/asyncStorage';
 import * as XLSX from 'xlsx';
-import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, MenuItem, Button, Dialog, DialogTitle, DialogContent, DialogActions, Input } from '@mui/material';
+
+const API_BASE = 'http://localhost:5000/api';
+
+const getToken = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    return user?.token || '';
+  } catch { return ''; }
+};
+
+const apiFetch = async (path, options = {}) => {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${getToken()}`,
+      ...options.headers,
+    },
+    ...options,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'เกิดข้อผิดพลาด');
+  return data;
+};
+import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, MenuItem, Button, Dialog, DialogTitle, DialogContent, DialogActions, Input, Checkbox, Tooltip } from '@mui/material';
 import './AdminDashboardPage.css';
 import './AdminUserManagementPage.css';
 
@@ -27,6 +49,10 @@ const AdminUserManagementPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const [selectedRole, setSelectedRole] = useState('all');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [importRows, setImportRows] = useState([]);
   const [importErrors, setImportErrors] = useState([]);
@@ -50,32 +76,24 @@ const AdminUserManagementPage = () => {
   useEffect(() => {
     const checkAdmin = async () => {
       const userStr = localStorage.getItem('user');
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        if (user.role !== 'admin') {
-           navigate('/dashboard'); 
-           return;
-        }
-        setAdminName(user.name || 'Admin');
-      } else {
+      if (!userStr) {
         navigate('/login');
         return;
       }
-
-      // Load users
-      const storedUsers = await asyncStorage.getItem('users');
-      let parsedUsers = storedUsers ? JSON.parse(storedUsers) : [];
-      
-      // Initial seed if empty (for demo)
-      if (parsedUsers.length === 0) {
-        parsedUsers = [
-          { id: '1', username: 'admin', password: 'password', name: 'Admin User', role: 'admin' },
-          { id: '2', username: 'advisor', password: 'password', name: 'Dr. Advisor', role: 'advisor', department: 'Computer Engineering' },
-          { id: '3', username: 'student1', password: 'password', name: 'Student One', role: 'student', studentId: '65000001', department: 'Computer Engineering' }
-        ];
-        await asyncStorage.setItem('users', JSON.stringify(parsedUsers));
+      const user = JSON.parse(userStr);
+      if (user.role !== 'admin') {
+        navigate('/dashboard');
+        return;
       }
-      setUsers(parsedUsers);
+      setAdminName(user.name || 'Admin');
+
+      // Load users from API
+      try {
+        const data = await apiFetch('/users');
+        setUsers(data.data || []);
+      } catch (err) {
+        console.error('Failed to load users:', err);
+      }
     };
 
     checkAdmin();
@@ -121,6 +139,10 @@ const AdminUserManagementPage = () => {
     setIsModalOpen(false);
     setEditingUser(null);
   };
+
+  useEffect(() => {
+    setSelectedUserIds((prev) => prev.filter((id) => users.some((u) => String(u.id) === String(id))));
+  }, [users]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -283,12 +305,19 @@ const AdminUserManagementPage = () => {
       return;
     }
 
-    const newUsers = importRows.map((row, idx) => buildUserPayload(row, idx));
-    const updatedUsers = [...users, ...newUsers];
-    setUsers(updatedUsers);
-    await asyncStorage.setItem('users', JSON.stringify(updatedUsers));
-    setImportRows([]);
-    setImportMessage(`เพิ่มผู้ใช้สำเร็จ ${newUsers.length} รายการ`);
+    try {
+      const res = await apiFetch('/users/import', {
+        method: 'POST',
+        body: JSON.stringify({ users: importRows }),
+      });
+      setImportMessage(`เพิ่มผู้ใช้สำเร็จ ${res.created} รายการ`);
+      setImportRows([]);
+      // Reload users
+      const usersData = await apiFetch('/users');
+      setUsers(usersData.data || []);
+    } catch (err) {
+      setImportMessage('เกิดข้อผิดพลาด: ' + err.message);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -300,56 +329,29 @@ const AdminUserManagementPage = () => {
       return;
     }
 
-    let updatedUsers = [...users];
-
-    if (editingUser) {
-      const lockedRole = editingUser.role === 'student' || editingUser.role === 'advisor';
-      const nextRole = lockedRole ? editingUser.role : formData.role;
-
-      // Update
-      updatedUsers = updatedUsers.map(u => 
-        u.id === editingUser.id ? { 
-          ...u, 
-          username: formData.username,
-          password: formData.password || u.password,
-          name: formData.name,
-          role: nextRole,
-          studentId: formData.studentId,
-          department: formData.department,
-          address: formData.address,
-          phone: formData.phone,
-          contactPerson: formData.contactPerson,
-          // Adapting fields to match inconsistent schema if needed
-          email: formData.username,
-          full_name: formData.name,
-          student_code: formData.studentId,
-          major: formData.department
-        } : u
-      );
-    } else {
-      // Add
-      const newUser = {
-        id: Date.now().toString(),
-        username: formData.username,
-        password: formData.password || '123456',
-        name: formData.name,
-        role: formData.role,
-        studentId: formData.studentId,
-        department: formData.department,
-        address: formData.address,
-        phone: formData.phone,
-        contactPerson: formData.contactPerson,
-        email: formData.username,
-        full_name: formData.name,
-        student_code: formData.studentId,
-        major: formData.department
-      };
-      updatedUsers.push(newUser);
+    try {
+      if (editingUser) {
+        const lockedRole = editingUser.role === 'student' || editingUser.role === 'advisor';
+        const nextRole = lockedRole ? editingUser.role : formData.role;
+        const payload = { ...formData, role: nextRole };
+        if (!payload.password) delete payload.password;
+        await apiFetch(`/users/${editingUser.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiFetch('/users', {
+          method: 'POST',
+          body: JSON.stringify(formData),
+        });
+      }
+      // Reload users
+      const usersData = await apiFetch('/users');
+      setUsers(usersData.data || []);
+      handleCloseModal();
+    } catch (err) {
+      alert('บันทึกล้มเหลว: ' + err.message);
     }
-
-    setUsers(updatedUsers);
-    await asyncStorage.setItem('users', JSON.stringify(updatedUsers));
-    handleCloseModal();
   };
 
   const handleDelete = async (id) => {
@@ -361,9 +363,12 @@ const AdminUserManagementPage = () => {
 
     if (!confirmed) return;
 
-    const updatedUsers = users.filter(u => u.id !== id);
-    setUsers(updatedUsers);
-    await asyncStorage.setItem('users', JSON.stringify(updatedUsers));
+    try {
+      await apiFetch(`/users/${id}`, { method: 'DELETE' });
+      setUsers(users.filter(u => String(u.id) !== String(id)));
+    } catch (err) {
+      alert('ลบผู้ใช้ล้มเหลว: ' + err.message);
+    }
   };
 
   const getRoleBadge = (role) => {
@@ -378,11 +383,81 @@ const AdminUserManagementPage = () => {
 
   const departments = departmentOptions;
 
+  const normalizedSearch = searchKeyword.trim().toLowerCase();
+
   const filteredUsers = users.filter(user => {
-      if (selectedDepartment === 'all') return true;
-      const userDept = user.department || user.major;
-      return userDept === selectedDepartment;
+      const userDept = user.department || user.major || '';
+      const matchesDepartment = selectedDepartment === 'all' || userDept === selectedDepartment;
+      const matchesRole = selectedRole === 'all' || user.role === selectedRole;
+
+      if (!matchesDepartment || !matchesRole) return false;
+
+      if (!normalizedSearch) return true;
+      const fields = [
+        user.username,
+        user.email,
+        user.name,
+        user.full_name,
+        user.studentId,
+        user.student_code,
+        userDept,
+        user.contactPerson,
+        user.phone
+      ]
+        .filter(Boolean)
+        .map((value) => String(value).toLowerCase());
+
+      return fields.some((field) => field.includes(normalizedSearch));
   });
+
+  const visibleUserIds = filteredUsers.map((user) => String(user.id));
+  const allVisibleSelected = visibleUserIds.length > 0 && visibleUserIds.every((id) => selectedUserIds.includes(id));
+  const someVisibleSelected = visibleUserIds.some((id) => selectedUserIds.includes(id));
+
+  const toggleSelectUser = (id) => {
+    const idStr = String(id);
+    setSelectedUserIds((prev) => (
+      prev.includes(idStr)
+        ? prev.filter((item) => item !== idStr)
+        : [...prev, idStr]
+    ));
+  };
+
+  const toggleSelectAllVisible = () => {
+    if (!visibleUserIds.length) return;
+    setSelectedUserIds((prev) => (
+      allVisibleSelected
+        ? prev.filter((id) => !visibleUserIds.includes(id))
+        : [...prev, ...visibleUserIds.filter((id) => !prev.includes(id))]
+    ));
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedUserIds.length || isBulkDeleting) return;
+
+    const confirmed = await window.showMuiConfirm(`คุณต้องการลบผู้ใช้ที่เลือกจำนวน ${selectedUserIds.length} รายการหรือไม่?`, {
+      title: 'ยืนยันการลบหลายรายการ',
+      confirmText: 'ลบทั้งหมด',
+      cancelText: 'ยกเลิก'
+    });
+
+    if (!confirmed) return;
+
+    setIsBulkDeleting(true);
+
+    try {
+      await Promise.all(
+        selectedUserIds.map((id) => apiFetch(`/users/${id}`, { method: 'DELETE' }))
+      );
+      const usersData = await apiFetch('/users');
+      setUsers(usersData.data || []);
+      setSelectedUserIds([]);
+    } catch (err) {
+      alert('ลบผู้ใช้บางรายการไม่สำเร็จ: ' + err.message);
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   return (
     <div className="admin-dashboard-container">
@@ -410,6 +485,9 @@ const AdminUserManagementPage = () => {
           </Link>
           <Link to="/admin-dashboard/checkins" className="nav-item">
             <span>เช็คชื่อรายวัน</span>
+          </Link>
+          <Link to="/admin-dashboard/attendance-overview" className="nav-item">
+            <span>ภาพรวมรายบุคคล</span>
           </Link>
           <Link to="/admin-dashboard/reports" className="nav-item">
             <span>รายงาน</span>
@@ -513,30 +591,76 @@ const AdminUserManagementPage = () => {
           </div>
 
            <div className="user-management-actions">
-             <div className="filter-group">
+             <div className="filter-group" style={{ flexWrap: 'wrap', gap: 12 }}>
               <TextField
                 select
                 size="small"
                 label="คัดกรองสาขา"
-                    value={selectedDepartment} 
-                    onChange={(e) => setSelectedDepartment(e.target.value)}
-                sx={{ minWidth: 280 }}
-                >
-                <MenuItem value="all">ทั้งหมด</MenuItem>
-                    {departments.map((dept, idx) => (
+                value={selectedDepartment}
+                onChange={(e) => setSelectedDepartment(e.target.value)}
+                sx={{ minWidth: 220 }}
+              >
+                <MenuItem value="all">ทุกสาขา</MenuItem>
+                {departments.map((dept, idx) => (
                   <MenuItem key={idx} value={dept}>{dept}</MenuItem>
-                    ))}
+                ))}
               </TextField>
-             </div>
-            <Button variant="contained" className="btn-add-user" onClick={() => handleOpenModal()}>
-              <span>+</span> เพิ่มผู้ใช้ใหม่
-            </Button>
+
+              <TextField
+                select
+                size="small"
+                label="บทบาท"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                sx={{ minWidth: 160 }}
+              >
+                <MenuItem value="all">ทุกบทบาท</MenuItem>
+                <MenuItem value="student">นักศึกษา</MenuItem>
+                <MenuItem value="advisor">อาจารย์</MenuItem>
+                <MenuItem value="company">บริษัท</MenuItem>
+                <MenuItem value="admin">ผู้ดูแลระบบ</MenuItem>
+              </TextField>
+
+              <TextField
+                size="small"
+                label="ค้นหา (ชื่อ, ผู้ใช้, เบอร์)"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                sx={{ minWidth: 240 }}
+                placeholder="พิมพ์คำค้น"
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <Tooltip title={selectedUserIds.length ? '' : 'เลือกผู้ใช้ก่อนเพื่อเปิดใช้งาน'}>
+                <span>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    disabled={!selectedUserIds.length || isBulkDeleting}
+                    onClick={handleBulkDelete}
+                  >
+                    ลบที่เลือก ({selectedUserIds.length})
+                  </Button>
+                </span>
+              </Tooltip>
+              <Button variant="contained" className="btn-add-user" onClick={() => handleOpenModal()}>
+                <span>+</span> เพิ่มผู้ใช้ใหม่
+              </Button>
+            </div>
           </div>
 
           <TableContainer className="users-table-container">
             <Table size="small" className="users-table" stickyHeader>
               <TableHead>
                 <TableRow>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      indeterminate={someVisibleSelected && !allVisibleSelected}
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAllVisible}
+                      inputProps={{ 'aria-label': 'เลือกทั้งหมด' }}
+                    />
+                  </TableCell>
                   <TableCell>ชื่อผู้ใช้/Email</TableCell>
                   <TableCell>ชื่อ-นามสกุล</TableCell>
                   <TableCell>บทบาท</TableCell>
@@ -545,9 +669,18 @@ const AdminUserManagementPage = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredUsers.map(user => (
-                  <TableRow key={user.id} hover>
-                    <TableCell>{user.username || user.email}</TableCell>
+                {filteredUsers.map(user => {
+                  const idStr = String(user.id);
+                  return (
+                    <TableRow key={user.id} hover selected={selectedUserIds.includes(idStr)}>
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={selectedUserIds.includes(idStr)}
+                          onChange={() => toggleSelectUser(idStr)}
+                          inputProps={{ 'aria-label': `เลือกผู้ใช้ ${user.username || user.name}` }}
+                        />
+                      </TableCell>
+                      <TableCell>{user.username || user.email}</TableCell>
                     <TableCell>{user.name || user.full_name}</TableCell>
                     <TableCell>{getRoleBadge(user.role)}</TableCell>
                     <TableCell>
@@ -560,14 +693,15 @@ const AdminUserManagementPage = () => {
                         </>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <div className="user-row-actions">
-                        <Button size="small" variant="outlined" className="btn-edit-user" onClick={() => handleOpenModal(user)}>แก้ไข</Button>
-                        <Button size="small" color="error" variant="outlined" className="btn-delete-user" onClick={() => handleDelete(user.id)}>ลบ</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      <TableCell>
+                        <div className="user-row-actions">
+                          <Button size="small" variant="outlined" className="btn-edit-user" onClick={() => handleOpenModal(user)}>แก้ไข</Button>
+                          <Button size="small" color="error" variant="outlined" className="btn-delete-user" onClick={() => handleDelete(user.id)}>ลบ</Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {filteredUsers.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} align="center" sx={{ py: 2.5 }}>ไม่พบข้อมูลผู้ใช้</TableCell>

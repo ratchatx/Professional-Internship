@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, MenuItem, Button } from '@mui/material';
+import api from '../../../api/axios';
 import './DashboardPage.css';
 import '../../Admin/Shared/CheckInPage.css';
 
@@ -69,35 +70,34 @@ const StudentCheckInPage = () => {
     }
 
     setUser(parsed);
-    const studentId = parsed.student_code || parsed.username || parsed.email;
-    const requests = JSON.parse(localStorage.getItem('requests') || '[]');
-    const ownRequests = requests.filter((request) => {
-      const requestStudentId = request.studentId || request.student_code || request.username || request.email;
-      return requestStudentId === studentId;
-    });
+    const studentId = parsed.student_code || parsed.studentId || parsed.username || parsed.email;
 
-    const latestRequest = [...ownRequests].sort((a, b) => {
-      const dateA = new Date(a.updatedAt || a.submittedDate || 0).getTime();
-      const dateB = new Date(b.updatedAt || b.submittedDate || 0).getTime();
-      if (dateA !== dateB) return dateB - dateA;
-      return (Number(b.id) || 0) - (Number(a.id) || 0);
-    })[0];
+    // Load requests from API
+    api.get(`/requests?studentId=${studentId}`).then(res => {
+      const ownRequests = res.data.data || [];
+      const latestRequest = [...ownRequests].sort((a, b) => {
+        const dateA = new Date(a.updated_at || a.submittedDate || 0).getTime();
+        const dateB = new Date(b.updated_at || b.submittedDate || 0).getTime();
+        if (dateA !== dateB) return dateB - dateA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      })[0];
 
-    setCurrentRequestStatus(latestRequest?.status || 'ไม่มีคำร้อง');
+      setCurrentRequestStatus(latestRequest?.status || 'ไม่มีคำร้อง');
+      const isInternshipStarted = ownRequests.some((request) => request.status === 'ออกฝึกงาน');
+      setCanCheckIn(isInternshipStarted);
 
-    const isInternshipStarted = ownRequests.some((request) => request.status === 'ออกฝึกงาน');
+      if (!isInternshipStarted) {
+        setMessage('ยังไม่สามารถใช้งานเช็คชื่อรายวันได้ กรุณารอให้ผู้ดูแลระบบกดเริ่มฝึกงานก่อน');
+        return;
+      }
 
-    setCanCheckIn(isInternshipStarted);
-
-    if (!isInternshipStarted) {
-      setMessage('ยังไม่สามารถใช้งานเช็คชื่อรายวันได้ กรุณารอให้ผู้ดูแลระบบกดเริ่มฝึกงานก่อน');
-      return;
-    }
-
-    const stored = JSON.parse(localStorage.getItem('daily_checkins') || '[]');
-    const ownEntries = stored.filter((entry) => entry.studentId === studentId);
-    ownEntries.sort((a, b) => b.date.localeCompare(a.date));
-    setEntries(ownEntries);
+      // Load checkins from API
+      api.get(`/checkins?studentId=${studentId}`).then(checkinRes => {
+        const ownEntries = checkinRes.data.data || [];
+        ownEntries.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+        setEntries(ownEntries);
+      }).catch(err => console.error('Failed to load checkins:', err));
+    }).catch(err => console.error('Failed to load requests:', err));
   }, [navigate]);
 
   const handleLogout = () => {
@@ -113,7 +113,7 @@ const StudentCheckInPage = () => {
     };
   }, []);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!user || !canCheckIn) return;
 
@@ -122,36 +122,32 @@ const StudentCheckInPage = () => {
       return;
     }
 
-    const studentId = user.student_code || user.username || user.email;
+    const studentId = user.student_code || user.studentId || user.username || user.email;
     const studentName = user.full_name || user.name || user.username || 'นักศึกษา';
-    const stored = JSON.parse(localStorage.getItem('daily_checkins') || '[]');
 
-    const existingIndex = stored.findIndex(
-      (entry) => entry.studentId === studentId && entry.date === form.date
-    );
+    try {
+      const response = await api.post('/checkins', {
+        studentId,
+        studentName,
+        date: form.date,
+        status: form.status,
+        note: form.note || '',
+      });
 
-    if (existingIndex >= 0) {
-      setMessage('คุณเช็คชื่อวันที่นี้แล้ว (เช็คชื่อได้วันละ 1 ครั้ง)');
-      return;
+      setMessage('บันทึกการเช็คชื่อเรียบร้อยแล้ว');
+
+      // Reload checkins from API
+      const checkinRes = await api.get(`/checkins?studentId=${studentId}`);
+      const ownEntries = checkinRes.data.data || [];
+      ownEntries.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+      setEntries(ownEntries);
+    } catch (error) {
+      if (error.response?.status === 409) {
+        setMessage('คุณเช็คชื่อวันที่นี้แล้ว (เช็คชื่อได้วันละ 1 ครั้ง)');
+      } else {
+        setMessage('เกิดข้อผิดพลาด: ' + (error.response?.data?.message || error.message));
+      }
     }
-
-    const payload = {
-      id: Date.now(),
-      studentId,
-      studentName,
-      date: form.date,
-      status: form.status,
-      note: form.note || '',
-      createdAt: new Date().toISOString()
-    };
-
-    stored.push(payload);
-    setMessage('บันทึกการเช็คชื่อเรียบร้อยแล้ว');
-
-    localStorage.setItem('daily_checkins', JSON.stringify(stored));
-    const ownEntries = stored.filter((entry) => entry.studentId === studentId);
-    ownEntries.sort((a, b) => b.date.localeCompare(a.date));
-    setEntries(ownEntries);
   };
 
   if (!user) return null;

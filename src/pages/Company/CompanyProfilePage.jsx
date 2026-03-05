@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../../api/axios';
 import { Button, Input, TextField } from '@mui/material';
 import '../Admin/Dashboard/AdminDashboardPage.css';
 import '../Student/Dashboard/ProfilePage.css';
@@ -76,7 +77,7 @@ const CompanyProfilePage = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!user) return;
 
     const updated = {
@@ -93,34 +94,20 @@ const CompanyProfilePage = () => {
       role: 'company'
     };
 
+    // Update user in localStorage
     localStorage.setItem('user', JSON.stringify(updated));
 
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    if (users.length > 0) {
-      const updatedUsers = users.map((storedUser) => {
-        const isSameUser =
-          (user.id && storedUser.id === user.id) ||
-          (user.username && storedUser.username === user.username) ||
-          (user.email && storedUser.email === user.email);
-
-        return isSameUser
-          ? {
-              ...storedUser,
-              name: form.companyName,
-              companyName: form.companyName,
-              full_name: form.companyName,
-              username: form.username,
-              email: form.email,
-              phone: form.phone,
-              contactPerson: form.contactPerson,
-              address: form.address,
-              avatar: avatarPreview,
-              role: 'company'
-            }
-          : storedUser;
+    // Update user in backend
+    try {
+      await api.put(`/users/${user.id}`, {
+        name: form.companyName,
+        username: form.username,
+        phone: form.phone,
+        contactPerson: form.contactPerson,
+        address: form.address,
       });
-
-      localStorage.setItem('users', JSON.stringify(updatedUsers));
+    } catch (err) {
+      console.error('Failed to update profile:', err);
     }
 
     setUser(updated);

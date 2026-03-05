@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../../../api/axios';
 import * as am5 from '@amcharts/amcharts5';
 import * as am5xy from '@amcharts/amcharts5/xy';
 import * as am5percent from '@amcharts/amcharts5/percent';
@@ -50,8 +51,9 @@ const AdminReportsPage = () => {
       return;
     }
 
-    const storedRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-    setRequests(storedRequests);
+    api.get('/requests').then(res => {
+      setRequests(res.data.data || []);
+    }).catch(err => console.error('Failed to load requests:', err));
   }, [navigate]);
 
   const handleLogout = () => {
@@ -281,6 +283,7 @@ const AdminReportsPage = () => {
           <Link to="/admin-dashboard/users" className="nav-item"><span>จัดการผู้ใช้</span></Link>
           <Link to="/admin-dashboard/payments" className="nav-item"><span>ตรวจสอบการชำระเงิน</span></Link>
           <Link to="/admin-dashboard/checkins" className="nav-item"><span>เช็คชื่อรายวัน</span></Link>
+          <Link to="/admin-dashboard/attendance-overview" className="nav-item"><span>ภาพรวมรายบุคคล</span></Link>
           <Link to="/admin-dashboard/reports" className="nav-item active"><span>รายงาน</span></Link>
           <Link to="/admin-dashboard/profile" className="nav-item"><span>โปรไฟล์</span></Link>
         </nav>

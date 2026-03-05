@@ -1,15 +1,34 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { TextField, MenuItem, Button, Input } from '@mui/material';
+import {
+  TextField,
+  MenuItem,
+  Button,
+  Input,
+  Autocomplete,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+} from '@mui/material';
 import api from '../../api/axios';
 import './NewRequestPage.css';
 import './Dashboard/DashboardPage.css'; // Import dashboard styles
 
 const NewRequestPage = () => {
-  const DIGIT_ONLY_FIELDS = new Set(['studentId', 'studentYear', 'studentPhone', 'supervisorPhone', 'homePostal']);
+  const DIGIT_ONLY_FIELDS = new Set(['studentId', 'studentYear', 'studentPhone', 'supervisorPhone', 'homePostal', 'companyPostal']);
   const MAX_DIGIT_LENGTH_FIELDS = {
     studentPhone: 10,
     supervisorPhone: 10,
+    companyPostal: 5,
   };
   const departmentOptions = [
     'สาขาวิชาวิทยาการคอมพิวเตอร์',
@@ -38,6 +57,16 @@ const NewRequestPage = () => {
   const [addressLoading, setAddressLoading] = useState(false);
   const [addressError, setAddressError] = useState('');
   const [useManualAddress, setUseManualAddress] = useState(false);
+  const [selectedCompanyProvinceId, setSelectedCompanyProvinceId] = useState(null);
+  const [selectedCompanyAmphureId, setSelectedCompanyAmphureId] = useState(null);
+  const [useManualCompanyAddress, setUseManualCompanyAddress] = useState(false);
+  const [companyPickerOpen, setCompanyPickerOpen] = useState(false);
+  const [recommendedCompanies, setRecommendedCompanies] = useState([]);
+  const [recommendedLoading, setRecommendedLoading] = useState(false);
+  const [recommendedError, setRecommendedError] = useState('');
+  const [companySearch, setCompanySearch] = useState('');
+  const previousOverflow = useRef({ body: null, html: null });
+  const [focusedCompany, setFocusedCompany] = useState(null);
   
   useEffect(() => {
     // Check if user is logged in
@@ -55,26 +84,18 @@ const NewRequestPage = () => {
       studentEmail: user.email || prev.studentEmail,
       studentId: user.student_code || user.username || prev.studentId,
       studentMajor: user.major || prev.studentMajor,
-      studentFaculty: user.faculty || prev.studentFaculty,
       studentPhone: user.phone || prev.studentPhone
     }));
 
-    // Optional: Check for existing active request
-    const allRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-    // Find any request that is NOT rejected
-    const REJECTED_STATUSES = ['ไม่อนุมัติ (อาจารย์)', 'ไม่อนุมัติ (Admin)', 'ปฏิเสธ'];
-    
-    // Check against multiple possible ID fields for robustness
-    const activeRequest = allRequests.find(req => 
-      (req.studentId == user.student_code || 
-       req.studentId == user.username || 
-       (user.email && req.studentId === user.email)) &&
-      !REJECTED_STATUSES.includes(req.status)
-    );
-
-    if (activeRequest) {
-      setHasExistingRequest(true);
-    }
+    // Check for existing active request via API
+    const studentId = user.student_code || user.studentId || user.username;
+    api.get(`/requests?studentId=${studentId}`).then(res => {
+      const REJECTED_STATUSES = ['ไม่อนุมัติ (อาจารย์)', 'ไม่อนุมัติ (Admin)', 'ปฏิเสธ'];
+      const activeRequest = (res.data.data || []).find(req => !REJECTED_STATUSES.includes(req.status));
+      if (activeRequest) {
+        setHasExistingRequest(true);
+      }
+    }).catch(err => console.error('Failed to check existing requests:', err));
 
   }, [navigate]);
 
@@ -105,10 +126,12 @@ const NewRequestPage = () => {
         setAmphureOptions(amphures);
         setTambonOptions(tambons);
         setUseManualAddress(false);
+        setUseManualCompanyAddress(false);
       } catch (error) {
         if (!mounted) return;
         setAddressError('ไม่สามารถโหลดข้อมูลจังหวัด/อำเภอ/ตำบลได้');
         setUseManualAddress(true);
+        setUseManualCompanyAddress(true);
       } finally {
         if (mounted) setAddressLoading(false);
       }
@@ -136,6 +159,14 @@ const NewRequestPage = () => {
     supervisorPhone: '',
     supervisorPosition: '',
 
+    // Company address fields
+    companyHouse: '',
+    companyMoo: '',
+    companyProvince: '',
+    companyAmphur: '',
+    companyTambon: '',
+    companyPostal: '',
+
     // Student personal fields
     studentTitle: '',
     studentName: '',
@@ -144,7 +175,6 @@ const NewRequestPage = () => {
     studentYear: '',
     lastSemesterGrade: '',
     studentMajor: '',
-    studentFaculty: '',
     homeHouse: '',
     homeMoo: '',
     homeTambon: '',
@@ -205,14 +235,14 @@ const NewRequestPage = () => {
     });
   };
 
-  const handleProvinceChange = (e) => {
-    const value = e.target.value;
+  const handleProvinceChange = (value) => {
+    const selectedValue = value || '';
     const matched = provinceOptions.find((p) => p.name_th === value);
     setSelectedProvinceId(matched ? matched.id : null);
     setSelectedAmphureId(null);
     setFormData((prev) => ({
       ...prev,
-      homeProvince: value,
+      homeProvince: selectedValue,
       homeAmphur: '',
       homeTambon: '',
       homePostal: ''
@@ -242,6 +272,46 @@ const NewRequestPage = () => {
       ...prev,
       homeTambon: value,
       homePostal: matched?.zip_code ? String(matched.zip_code) : ''
+    }));
+  };
+
+  const handleCompanyProvinceChange = (value) => {
+    const selectedValue = value || '';
+    const matched = provinceOptions.find((p) => p.name_th === value);
+    setSelectedCompanyProvinceId(matched ? matched.id : null);
+    setSelectedCompanyAmphureId(null);
+    setFormData((prev) => ({
+      ...prev,
+      companyProvince: selectedValue,
+      companyAmphur: '',
+      companyTambon: '',
+      companyPostal: ''
+    }));
+  };
+
+  const handleCompanyAmphureChange = (e) => {
+    const value = e.target.value;
+    const matched = amphureOptions.find(
+      (a) => a.name_th === value && a.province_id === selectedCompanyProvinceId
+    );
+    setSelectedCompanyAmphureId(matched ? matched.id : null);
+    setFormData((prev) => ({
+      ...prev,
+      companyAmphur: value,
+      companyTambon: '',
+      companyPostal: ''
+    }));
+  };
+
+  const handleCompanyTambonChange = (e) => {
+    const value = e.target.value;
+    const matched = tambonOptions.find(
+      (t) => t.name_th === value && t.district_id === selectedCompanyAmphureId
+    );
+    setFormData((prev) => ({
+      ...prev,
+      companyTambon: value,
+      companyPostal: matched?.zip_code ? String(matched.zip_code) : ''
     }));
   };
 
@@ -276,29 +346,15 @@ const NewRequestPage = () => {
         });
       }
 
-      const canStorePhotoLocally = photoData && photoData.length <= MAX_LOCAL_STORAGE_IMAGE_SIZE;
-      const storePhotoNotice = studentPhoto && !canStorePhotoLocally;
-      const trySetLocalStorage = (key, value) => {
-        try {
-          localStorage.setItem(key, value);
-          return true;
-        } catch (err) {
-          console.error(`Failed to write ${key} to localStorage`, err);
-          return false;
-        }
-      };
-
-      const payload = {
-        student_id: user._id, // Assumes user object has Student ID (from profile spread)
+      const details = {
         student_info: {
           title: formData.studentTitle,
           name: formData.studentName,
-            email: formData.studentEmail,
+          email: formData.studentEmail,
           studentId: formData.studentId,
           year: formData.studentYear,
           lastSemesterGrade: formData.lastSemesterGrade,
           major: formData.studentMajor,
-          faculty: formData.studentFaculty,
           address: {
             house: formData.homeHouse,
             moo: formData.homeMoo,
@@ -309,90 +365,176 @@ const NewRequestPage = () => {
           },
           phone: formData.studentPhone
         },
-        companyName: formData.companyName,
-        address: formData.address,
+        companyAddress: {
+          house: formData.companyHouse,
+          moo: formData.companyMoo,
+          tambon: formData.companyTambon,
+          amphur: formData.companyAmphur,
+          province: formData.companyProvince,
+          postal: formData.companyPostal,
+          detail: formData.address,
+        },
         contactPerson: formData.supervisor,
         contactPosition: formData.supervisorPosition,
         contactEmail: formData.supervisorEmail,
         contactPhone: formData.supervisorPhone,
-        position: formData.position,
         startDate: formData.startDate,
         endDate: formData.endDate,
         description: formData.jobDescription,
-        skills: formData.skills
-        ,
-        studentPhoto: photoData ? { name: studentPhoto.name, data: photoData } : null
+        skills: formData.skills,
+        studentPhoto: photoData ? { name: studentPhoto.name } : null
       };
 
-      let apiAvailable = Boolean(api.defaults.baseURL);
-      if (apiAvailable) {
-        try {
-          await api.post('/requests', payload);
-        } catch (err) {
-          apiAvailable = false;
-          console.warn('API unavailable, using local storage');
-        }
-      } else {
-        console.warn('API base URL not set, using local storage');
-      }
-
-      // Start: Add to LocalStorage for Demo
-      const existingRequests = JSON.parse(localStorage.getItem('requests') || '[]');
-      
-      // Update User Avatar if photo is an image
-      if (studentPhoto && studentPhoto.type.startsWith('image/') && canStorePhotoLocally) {
-         try {
-             // Update local user object
-             const latestUser = { ...user, avatar: photoData };
-             trySetLocalStorage('user', JSON.stringify(latestUser));
-             
-             // Update users list in storage if it exists (for sync across simulated users)
-             const allUsers = JSON.parse(localStorage.getItem('users') || '[]');
-             const userIndex = allUsers.findIndex(u => u.username === user.username || u.email === user.email);
-             if (userIndex !== -1) {
-                 allUsers[userIndex].avatar = photoData;
-                 trySetLocalStorage('users', JSON.stringify(allUsers));
-             }
-         } catch (err) {
-             console.error("Failed to update user avatar", err);
-         }
-      }
-
-      const storedPhoto = canStorePhotoLocally
-        ? { name: studentPhoto?.name || null, data: photoData }
-        : (studentPhoto ? { name: studentPhoto.name, data: null } : null);
-
-      const newRequest = {
-        id: Date.now().toString(),
+      const requestPayload = {
         studentId: formData.studentId || user.student_code || user.username || 'N/A',
         studentName: formData.studentName || user.full_name || user.name || 'Student',
-        department: formData.studentMajor || user.major || 'Computer Engineering',
+        department: formData.studentMajor || user.major || '',
         company: formData.companyName,
         position: formData.position,
         submittedDate: new Date().toISOString(),
-        status: 'รออาจารย์ที่ปรึกษาอนุมัติ', // Step 1: Send to Advisor
-        details: { ...payload, studentPhoto: storedPhoto },
-        studentPhotoName: studentPhoto ? studentPhoto.name : null,
-        studentAvatar: (studentPhoto && studentPhoto.type.startsWith('image/') && canStorePhotoLocally) ? photoData : null 
+        status: 'รออาจารย์ที่ปรึกษาอนุมัติ',
+        details,
       };
-      existingRequests.push(newRequest);
-      const saved = trySetLocalStorage('requests', JSON.stringify(existingRequests));
-      // End: Add to LocalStorage
 
-      if (!saved) {
-        throw new Error('Local storage is full. Please clear browser storage and try again.');
+      await api.post('/requests', requestPayload);
+
+      // Update avatar in localStorage if photo is an image
+      if (studentPhoto && studentPhoto.type.startsWith('image/') && photoData) {
+        try {
+          const latestUser = { ...user, avatar: photoData };
+          localStorage.setItem('user', JSON.stringify(latestUser));
+        } catch (err) {
+          console.error("Failed to update user avatar", err);
+        }
       }
 
-      const successMessage = storePhotoNotice
-        ? 'ยื่นคำร้องสำเร็จ! รอการอนุมัติจากอาจารย์ที่ปรึกษา\nรูปภาพมีขนาดใหญ่ จึงไม่ถูกบันทึกในเครื่อง (โหมดเดโม)'
-        : 'ยื่นคำร้องสำเร็จ! รอการอนุมัติจากอาจารย์ที่ปรึกษา';
-      alert(successMessage);
+      alert('ยื่นคำร้องสำเร็จ! รอการอนุมัติจากอาจารย์ที่ปรึกษา');
       navigate('/dashboard/my-requests');
     } catch (error) {
       console.error('Error submitting request:', error);
       alert('เกิดข้อผิดพลาดในการยื่นคำร้อง: ' + (error.response?.data?.message || error.message));
     }
   };
+
+  const normalizeCompanyAddress = (rawAddress) => {
+    if (!rawAddress) return { detail: '', fullText: '' };
+    if (typeof rawAddress === 'string') {
+      return { detail: rawAddress, fullText: rawAddress };
+    }
+    if (typeof rawAddress === 'object') {
+      const formatted = {
+        house: rawAddress.house || rawAddress.no || '',
+        moo: rawAddress.moo || rawAddress.village || '',
+        tambon: rawAddress.tambon || rawAddress.subdistrict || '',
+        amphur: rawAddress.amphur || rawAddress.district || '',
+        province: rawAddress.province || rawAddress.city || '',
+        postal: rawAddress.postal || rawAddress.zip || '',
+        detail: rawAddress.detail || rawAddress.description || '',
+      };
+      const fullText = [
+        formatted.house,
+        formatted.moo && `หมู่ ${formatted.moo}`,
+        formatted.tambon && `ต.${formatted.tambon}`,
+        formatted.amphur && `อ.${formatted.amphur}`,
+        formatted.province && `จ.${formatted.province}`,
+        formatted.postal && `รหัส ${formatted.postal}`,
+        formatted.detail,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      return { ...formatted, fullText };
+    }
+    return { detail: '', fullText: '' };
+  };
+
+  const loadRecommendedCompanies = async () => {
+    setRecommendedLoading(true);
+    setRecommendedError('');
+    try {
+      const res = await api.get('/public/companies');
+      setRecommendedCompanies(res.data.data || []);
+    } catch (error) {
+      setRecommendedError('ไม่สามารถโหลดข้อมูลสถานประกอบการแนะนำได้');
+    } finally {
+      setRecommendedLoading(false);
+    }
+  };
+
+  const handleOpenCompanyPicker = () => {
+    setCompanyPickerOpen(true);
+    if (!recommendedCompanies.length && !recommendedLoading) {
+      loadRecommendedCompanies();
+    }
+  };
+
+  const handleCloseCompanyPicker = () => {
+    setCompanyPickerOpen(false);
+    setCompanySearch('');
+    setFocusedCompany(null);
+  };
+
+  const filteredRecommendedCompanies = useMemo(() => {
+    const keyword = companySearch.trim().toLowerCase();
+    if (!keyword) return recommendedCompanies;
+    return recommendedCompanies.filter((company) => {
+      const fields = [company.name, company.businessType, company.address, company.contactPerson]
+        .filter(Boolean)
+        .map((value) => String(value).toLowerCase());
+      return fields.some((field) => field.includes(keyword));
+    });
+  }, [companySearch, recommendedCompanies]);
+
+  const applyRecommendedCompany = (company) => {
+    if (!company) return;
+    const normalized = normalizeCompanyAddress(company.address);
+    const matchedProvince = normalized.province
+      ? provinceOptions.find((p) => p.name_th === normalized.province)
+      : null;
+    const matchedAmphure = matchedProvince && normalized.amphur
+      ? amphureOptions.find((a) => a.name_th === normalized.amphur && a.province_id === matchedProvince.id)
+      : null;
+    const matchedTambon = matchedAmphure && normalized.tambon
+      ? tambonOptions.find((t) => t.name_th === normalized.tambon && t.district_id === matchedAmphure.id)
+      : null;
+
+    setSelectedCompanyProvinceId(matchedProvince?.id || null);
+    setSelectedCompanyAmphureId(matchedAmphure?.id || null);
+    setFormData((prev) => ({
+      ...prev,
+      companyName: company.name || prev.companyName,
+      companyHouse: normalized.house ?? '',
+      companyMoo: normalized.moo ?? '',
+      companyTambon: matchedTambon ? matchedTambon.name_th : normalized.tambon ?? '',
+      companyAmphur: matchedAmphure ? matchedAmphure.name_th : normalized.amphur ?? '',
+      companyProvince: matchedProvince ? matchedProvince.name_th : normalized.province ?? '',
+      companyPostal: normalized.postal ?? '',
+      address: normalized.detail || normalized.fullText || prev.address,
+      supervisor: company.contactPerson || '',
+      supervisorPhone: company.phone || '',
+    }));
+    handleCloseCompanyPicker();
+  };
+
+  useEffect(() => {
+    if (companyPickerOpen) {
+      previousOverflow.current = {
+        body: document.body.style.overflow,
+        html: document.documentElement.style.overflow,
+      };
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else if (previousOverflow.current.body !== null || previousOverflow.current.html !== null) {
+      document.body.style.overflow = previousOverflow.current.body ?? '';
+      document.documentElement.style.overflow = previousOverflow.current.html ?? '';
+      previousOverflow.current = { body: null, html: null };
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow.current.body ?? '';
+      document.documentElement.style.overflow = previousOverflow.current.html ?? '';
+      previousOverflow.current = { body: null, html: null };
+    };
+  }, [companyPickerOpen]);
 
   return (
     <div className="dashboard-container">
@@ -571,11 +713,6 @@ const NewRequestPage = () => {
                     ))}
                   </TextField>
                 </div>
-
-                <div className="form-group">
-                  <label htmlFor="studentFaculty">คณะ/วิทยาลัย</label>
-                  <TextField fullWidth size="small" type="text" id="studentFaculty" name="studentFaculty" value={formData.studentFaculty} onChange={handleChange} placeholder="คณะ/วิทยาลัย" />
-                </div>
               </div>
 
               <div className="form-group">
@@ -595,12 +732,20 @@ const NewRequestPage = () => {
                     </>
                   ) : (
                     <>
-                      <TextField select fullWidth size="small" id="homeProvince" name="homeProvince" value={formData.homeProvince} onChange={handleProvinceChange}>
-                        <MenuItem value="">เลือกจังหวัด</MenuItem>
-                        {provinceOptions.map((province) => (
-                          <MenuItem key={province.id} value={province.name_th}>{province.name_th}</MenuItem>
-                        ))}
-                      </TextField>
+                      <Autocomplete
+                        fullWidth
+                        size="small"
+                        options={provinceOptions.map((province) => province.name_th)}
+                        value={formData.homeProvince || ''}
+                        onChange={(_, value) => handleProvinceChange(value)}
+                        autoHighlight
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="เลือกหรือพิมพ์จังหวัด"
+                          />
+                        )}
+                      />
                       <TextField select fullWidth size="small" id="homeAmphur" name="homeAmphur" value={formData.homeAmphur} onChange={handleAmphureChange} disabled={!selectedProvinceId}>
                         <MenuItem value="">เลือกอำเภอ</MenuItem>
                         {amphureOptions
@@ -681,7 +826,12 @@ const NewRequestPage = () => {
             </div>
 
             <div className="form-section">
-              <h2>ข้อมูลสถานประกอบการ</h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <h2 style={{ margin: 0 }}>ข้อมูลสถานประกอบการ</h2>
+                <Button variant="outlined" size="small" onClick={handleOpenCompanyPicker} disabled={hasExistingRequest}>
+                  เลือกจากรายการแนะนำ
+                </Button>
+              </div>
               
               <div className="form-row">
                 <div className="form-group">
@@ -716,7 +866,153 @@ const NewRequestPage = () => {
               </div>
 
               <div className="form-group">
-                <label htmlFor="address">ที่อยู่สถานประกอบการ *</label>
+                <label htmlFor="companyAddress">ที่อยู่สถานประกอบการ *</label>
+                <div className="form-row">
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="text"
+                    id="companyHouse"
+                    name="companyHouse"
+                    value={formData.companyHouse}
+                    onChange={handleChange}
+                    placeholder="ที่อยู่เลขที่"
+                    required
+                  />
+                </div>
+                <div className="form-row">
+                  {useManualCompanyAddress ? (
+                    <>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="text"
+                        id="companyTambon"
+                        name="companyTambon"
+                        value={formData.companyTambon}
+                        onChange={handleChange}
+                        placeholder="ตำบล"
+                        required
+                      />
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="text"
+                        id="companyAmphur"
+                        name="companyAmphur"
+                        value={formData.companyAmphur}
+                        onChange={handleChange}
+                        placeholder="อำเภอ"
+                        required
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Autocomplete
+                        fullWidth
+                        size="small"
+                        options={provinceOptions.map((province) => province.name_th)}
+                        value={formData.companyProvince || ''}
+                        onChange={(_, value) => handleCompanyProvinceChange(value)}
+                        autoHighlight
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            placeholder="เลือกหรือพิมพ์จังหวัด"
+                            required
+                          />
+                        )}
+                      />
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        id="companyAmphur"
+                        name="companyAmphur"
+                        value={formData.companyAmphur}
+                        onChange={handleCompanyAmphureChange}
+                        disabled={!selectedCompanyProvinceId}
+                        required
+                      >
+                        <MenuItem value="">เลือกอำเภอ</MenuItem>
+                        {amphureOptions
+                          .filter((amphure) => amphure.province_id === selectedCompanyProvinceId)
+                          .map((amphure) => (
+                            <MenuItem key={amphure.id} value={amphure.name_th}>{amphure.name_th}</MenuItem>
+                          ))}
+                      </TextField>
+                    </>
+                  )}
+                </div>
+                <div className="form-row">
+                  {useManualCompanyAddress ? (
+                    <>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="text"
+                        id="companyProvince"
+                        name="companyProvince"
+                        value={formData.companyProvince}
+                        onChange={handleChange}
+                        placeholder="จังหวัด"
+                        required
+                      />
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="text"
+                        id="companyPostal"
+                        name="companyPostal"
+                        value={formData.companyPostal}
+                        onChange={handleChange}
+                        placeholder="รหัสไปรษณีย์"
+                        inputProps={{ inputMode: 'numeric', pattern: '[0-9]*', maxLength: 5 }}
+                        required
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <TextField
+                        select
+                        fullWidth
+                        size="small"
+                        id="companyTambon"
+                        name="companyTambon"
+                        value={formData.companyTambon}
+                        onChange={handleCompanyTambonChange}
+                        disabled={!selectedCompanyAmphureId}
+                        required
+                      >
+                        <MenuItem value="">เลือกตำบล</MenuItem>
+                        {tambonOptions
+                          .filter((tambon) => tambon.district_id === selectedCompanyAmphureId)
+                          .map((tambon) => (
+                            <MenuItem key={tambon.id} value={tambon.name_th}>{tambon.name_th}</MenuItem>
+                          ))}
+                      </TextField>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        type="text"
+                        id="companyPostal"
+                        name="companyPostal"
+                        value={formData.companyPostal}
+                        onChange={handleChange}
+                        placeholder="รหัสไปรษณีย์"
+                        InputProps={{ readOnly: true }}
+                        required
+                      />
+                    </>
+                  )}
+                </div>
+                {addressLoading && (
+                  <p className="field-hint">กำลังโหลดข้อมูลที่อยู่...</p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="address">รายละเอียดที่อยู่เพิ่มเติม</label>
                 <TextField
                   fullWidth
                   size="small"
@@ -725,9 +1021,8 @@ const NewRequestPage = () => {
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
-                  placeholder="ระบุที่อยู่ครบถ้วน"
-                  rows="3"
-                  required
+                  placeholder="เช่น อาคาร/ชั้น/ซอย"
+                  rows="2"
                 />
               </div>
 
@@ -872,6 +1167,121 @@ const NewRequestPage = () => {
           </form>
         </div>
       </main>
+
+      <Dialog
+        open={companyPickerOpen}
+        onClose={handleCloseCompanyPicker}
+        fullWidth
+        maxWidth="md"
+        scroll="paper"
+        PaperProps={{ sx: { maxHeight: '85vh' } }}
+      >
+        <DialogTitle>เลือกสถานประกอบการแนะนำ</DialogTitle>
+        <DialogContent dividers sx={{ maxHeight: '65vh', overflowY: 'auto' }}>
+          {recommendedLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+              <CircularProgress />
+            </div>
+          ) : recommendedError ? (
+            <Paper elevation={0} sx={{ p: 2, textAlign: 'center', color: '#dc2626' }}>
+              {recommendedError}
+            </Paper>
+          ) : recommendedCompanies.length === 0 ? (
+            <Paper elevation={0} sx={{ p: 2, textAlign: 'center', color: '#64748b' }}>
+              ยังไม่มีข้อมูลสถานประกอบการแนะนำ
+            </Paper>
+          ) : (
+            <>
+              <TextField
+                fullWidth
+                size="small"
+                margin="dense"
+                label="ค้นหาบริษัท / ประเภทธุรกิจ"
+                value={companySearch}
+                onChange={(e) => setCompanySearch(e.target.value)}
+              />
+              <TableContainer sx={{ mt: 2, maxHeight: 360, overflowY: 'auto' }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>ชื่อบริษัท</TableCell>
+                      <TableCell>ประเภทธุรกิจ</TableCell>
+                      <TableCell>ผู้ติดต่อ</TableCell>
+                      <TableCell align="center">รายละเอียด</TableCell>
+                      <TableCell align="right">เลือก</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredRecommendedCompanies.map((company, idx) => (
+                      <TableRow key={`${company.name}-${idx}`} hover>
+                        <TableCell>{company.name}</TableCell>
+                        <TableCell>{company.businessType || '-'}</TableCell>
+                        <TableCell>
+                          <div>{company.contactPerson || '-'}</div>
+                          {company.phone && <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{company.phone}</div>}
+                        </TableCell>
+                        <TableCell align="center">
+                          <Button size="small" variant="text" onClick={() => setFocusedCompany(company)}>
+                            รายละเอียด
+                          </Button>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Button size="small" variant="contained" onClick={() => applyRecommendedCompany(company)}>
+                            เลือก
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filteredRecommendedCompanies.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} align="center">
+                          ไม่พบข้อมูลตามคำค้นหา
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <div style={{ marginTop: '1.5rem' }}>
+                {focusedCompany ? (
+                  <Paper elevation={0} sx={{ p: 2, border: '1px solid #e5e7eb', borderRadius: 2 }}>
+                    <h3 style={{ marginTop: 0 }}>{focusedCompany.name}</h3>
+                    <p style={{ margin: '0.25rem 0', color: '#475569' }}>
+                      ประเภทธุรกิจ: {focusedCompany.businessType || 'ไม่ระบุ'}
+                    </p>
+                    {focusedCompany.address && (
+                      <p style={{ margin: '0.25rem 0', color: '#475569' }}>
+                        ที่อยู่: {typeof focusedCompany.address === 'string' ? focusedCompany.address : JSON.stringify(focusedCompany.address)}
+                      </p>
+                    )}
+                    {focusedCompany.contactPerson && (
+                      <p style={{ margin: '0.25rem 0', color: '#475569' }}>
+                        ผู้ติดต่อ: {focusedCompany.contactPerson} {focusedCompany.phone ? `(${focusedCompany.phone})` : ''}
+                      </p>
+                    )}
+                    <p style={{ margin: '0.25rem 0', color: '#475569' }}>ที่มา: {focusedCompany.source || '-'}</p>
+                    <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <Button variant="outlined" size="small" onClick={() => applyRecommendedCompany(focusedCompany)}>
+                        ใช้ข้อมูลบริษัทนี้
+                      </Button>
+                      <Button variant="text" size="small" onClick={() => setFocusedCompany(null)}>
+                        ปิดรายละเอียด
+                      </Button>
+                    </div>
+                  </Paper>
+                ) : (
+                  <Paper elevation={0} sx={{ p: 2, textAlign: 'center', color: '#94a3b8', border: '1px dashed #e2e8f0', borderRadius: 2 }}>
+                    เลือก "รายละเอียด" ในตารางเพื่อดูข้อมูลบริษัทเพิ่มเติม
+                  </Paper>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseCompanyPicker}>ปิด</Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

@@ -128,6 +128,9 @@ const AdminProfilePage = () => {
           <Link to="/admin-dashboard/checkins" className="nav-item">
             <span>เช็คชื่อรายวัน</span>
           </Link>
+          <Link to="/admin-dashboard/attendance-overview" className="nav-item">
+            <span>ภาพรวมรายบุคคล</span>
+          </Link>
           <Link to="/admin-dashboard/reports" className="nav-item">
             <span>รายงาน</span>
           </Link>
