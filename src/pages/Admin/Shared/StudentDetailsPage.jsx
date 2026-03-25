@@ -10,16 +10,6 @@ const StudentDetailsPage = () => {
   const navigate = useNavigate();
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('');
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [actionModal, setActionModal] = useState({
-    open: false,
-    status: '',
-    title: '',
-    description: '',
-    successMsg: '',
-  });
-  const [feedbackMessage, setFeedbackMessage] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -29,10 +19,8 @@ const StudentDetailsPage = () => {
         return;
       }
       try {
-        const parsed = JSON.parse(userStr);
-        setUserRole(parsed.role || '');
+        JSON.parse(userStr);
       } catch {
-        setUserRole('');
       }
 
       let info = null;
@@ -164,38 +152,6 @@ const StudentDetailsPage = () => {
   };
 
   const requestId = student.requestRaw?.id;
-  const canCompanyRespond =
-    userRole === 'company' && requestId && student.requestRaw?.status === 'รอสถานประกอบการตอบรับ';
-
-  const updateRequestStatus = async (newStatus, successMsg) => {
-    if (!requestId) return;
-    setIsUpdatingStatus(true);
-    try {
-      await api.patch(`/requests/${requestId}/status`, { status: newStatus });
-      setStudent((prev) => (
-        prev
-          ? {
-              ...prev,
-              requestRaw: {
-                ...(prev.requestRaw || {}),
-                status: newStatus,
-              },
-            }
-          : prev
-      ));
-      setFeedbackMessage(successMsg);
-      setActionModal((prev) => ({ ...prev, open: false }));
-    } catch (error) {
-      console.error('Failed to update status:', error);
-      setFeedbackMessage(error.response?.data?.message || 'อัปเดตสถานะไม่สำเร็จ');
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-
-  const openActionModal = (status, title, description, successMsg) => {
-    setActionModal({ open: true, status, title, description, successMsg });
-  };
 
   return (
     <div className="request-details-container">
@@ -282,76 +238,9 @@ const StudentDetailsPage = () => {
             ย้อนกลับ
           </button>
           <div className="actions-right" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            {canCompanyRespond && (
-              <>
-                <button
-                  type="button"
-                  className="btn-reject-lg"
-                  disabled={isUpdatingStatus}
-                  onClick={() =>
-                    openActionModal(
-                      'ปฏิเสธ',
-                      'ยืนยันการปฏิเสธนักศึกษารายนี้?',
-                      'เมื่อตอบ "ยืนยัน" สถานะคำร้องจะถูกเปลี่ยนเป็น "ปฏิเสธ"',
-                      'ปฏิเสธคำร้องเรียบร้อย'
-                    )
-                  }
-                >
-                  ยกเลิก (ไม่รับ)
-                </button>
-                <button
-                  type="button"
-                  className="btn-approve-lg"
-                  disabled={isUpdatingStatus}
-                  onClick={() =>
-                    openActionModal(
-                      'อนุมัติแล้ว',
-                      'ตอบรับนักศึกษารายนี้?',
-                      'หลังยืนยัน ระบบจะแจ้งว่านักศึกษาถูกตอบรับเข้าฝึกงานเรียบร้อย',
-                      'ตอบรับนักศึกษาเรียบร้อย'
-                    )
-                  }
-                >
-                  ตอบรับนักศึกษา
-                </button>
-              </>
-            )}
           </div>
         </footer>
-        {feedbackMessage && (
-          <div style={{ marginTop: '18px', padding: '10px 16px', borderRadius: '12px', background: '#ecfccb', color: '#3f6212' }}>
-            {feedbackMessage}
-          </div>
-        )}
       </div>
-
-      {actionModal.open && (
-        <div className="modal-overlay">
-          <div className="modal-content action-modal" role="dialog" aria-modal="true">
-            <div className="modal-header">
-              <h2>{actionModal.title}</h2>
-              <button className="close-btn" onClick={() => setActionModal((prev) => ({ ...prev, open: false }))}>
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>{actionModal.description}</p>
-            </div>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setActionModal((prev) => ({ ...prev, open: false }))}>
-                ยกเลิก
-              </button>
-              <button
-                className="btn-submit"
-                onClick={() => updateRequestStatus(actionModal.status, actionModal.successMsg)}
-                disabled={isUpdatingStatus}
-              >
-                ยืนยัน
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

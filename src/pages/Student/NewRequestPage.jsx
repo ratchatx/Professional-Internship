@@ -151,8 +151,6 @@ const NewRequestPage = () => {
   const [formData, setFormData] = useState({
     companyName: '',
     position: '',
-    startDate: '',
-    endDate: '',
     address: '',
     supervisor: '',
     supervisorEmail: '',
@@ -378,8 +376,6 @@ const NewRequestPage = () => {
         contactPosition: formData.supervisorPosition,
         contactEmail: formData.supervisorEmail,
         contactPhone: formData.supervisorPhone,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
         description: formData.jobDescription,
         skills: formData.skills,
         studentPhoto: photoData ? { name: studentPhoto.name } : null
@@ -561,7 +557,7 @@ const NewRequestPage = () => {
             <span>หลักฐานการชำระออกฝึก</span>
           </Link>
           <Link to="/dashboard/check-in" className="nav-item">
-            <span>เช็คชื่อรายวัน</span>
+            <span>รายงานประจำวัน</span>
           </Link>
           <Link to="/dashboard/profile" className="nav-item">
             <span>โปรไฟล์</span>
@@ -1026,37 +1022,7 @@ const NewRequestPage = () => {
                 />
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="startDate">วันที่เริ่มฝึกงาน *</label>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type="date"
-                    id="startDate"
-                    name="startDate"
-                    value={formData.startDate}
-                    onChange={handleChange}
-                    InputLabelProps={{ shrink: true }}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="endDate">วันที่สิ้นสุดฝึกงาน *</label>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    type="date"
-                    id="endDate"
-                    name="endDate"
-                    value={formData.endDate}
-                    onChange={handleChange}
-                    InputLabelProps={{ shrink: true }}
-                    required
-                  />
-                </div>
-              </div>
+              {/* Removed explicit internship start/end date inputs per new flow */}
 
               <h3>ข้อมูลหัวหน้าหน่วยงาน/ผู้ดูแล</h3>
               <div className="form-group">

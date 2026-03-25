@@ -50,7 +50,6 @@ const LoginPage = () => {
       switch(user.role) {
           case 'admin': navigate('/admin-dashboard'); break;
           case 'advisor': navigate('/advisor-dashboard'); break;
-          case 'company': navigate('/company-dashboard'); break;
           default: navigate('/dashboard');
       }
 

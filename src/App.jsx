@@ -5,8 +5,6 @@ import DashboardPage from './pages/Student/Dashboard/DashboardPage';
 import ProfilePage from './pages/Student/Dashboard/ProfilePage';
 import MyRequestsPage from './pages/Student/Dashboard/MyRequestsPage';
 import AdvisorDashboardPage from './pages/Advisor/AdvisorDashboardPage';
-import CompanyDashboardPage from './pages/Company/CompanyDashboardPage';
-import CompanyProfilePage from './pages/Company/CompanyProfilePage';
 import NewRequestPage from './pages/Student/NewRequestPage';
 import AdminDashboardPage from './pages/Admin/Dashboard/AdminDashboardPage';
 import StudentListPage from './pages/Admin/Dashboard/StudentListPage';
@@ -18,12 +16,12 @@ import AdminProfilePage from './pages/Admin/Dashboard/AdminProfilePage';
 import AdvisorStudentListPage from './pages/Advisor/AdvisorStudentListPage';
 import AdvisorSupervisionPage from './pages/Advisor/AdvisorSupervisionPage';
 import AdvisorProgressCheckPage from './pages/Advisor/AdvisorProgressCheckPage';
-import CompanyStudentListPage from './pages/Company/CompanyStudentListPage';
 import RequestDetailsPage from './pages/Admin/Shared/RequestDetailsPage';
 import StudentDetailsPage from './pages/Admin/Shared/StudentDetailsPage';
 import StudentCheckInPage from './pages/Student/Dashboard/StudentCheckInPage';
 import AdminCheckInPage from './pages/Admin/Dashboard/AdminCheckInPage';
 import AdminAttendanceOverviewPage from './pages/Admin/Dashboard/AdminAttendanceOverviewPage';
+import PublicRequestPage from './pages/Public/PublicRequestPage';
 import './App.css';
 
 function App() {
@@ -52,9 +50,7 @@ function App() {
         <Route path="/advisor-dashboard/students" element={<AdvisorStudentListPage />} />
         <Route path="/advisor-dashboard/supervision" element={<AdvisorSupervisionPage />} />
         <Route path="/advisor-dashboard/progress" element={<AdvisorProgressCheckPage />} />
-        <Route path="/company-dashboard" element={<CompanyDashboardPage />} />
-        <Route path="/company-dashboard/interns" element={<CompanyStudentListPage />} />
-        <Route path="/company-dashboard/profile" element={<CompanyProfilePage />} />
+        <Route path="/public/request/:id" element={<PublicRequestPage />} />
       </Routes>
     </Router>
   );

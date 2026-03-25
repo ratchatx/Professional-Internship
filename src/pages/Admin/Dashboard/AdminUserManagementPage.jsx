@@ -164,12 +164,10 @@ const AdminUserManagementPage = () => {
     const map = {
       student: 'student',
       advisor: 'advisor',
-      company: 'company',
       admin: 'admin',
       'นักศึกษา': 'student',
       'อาจารย์': 'advisor',
       'อาจารย์ที่ปรึกษา': 'advisor',
-      'บริษัท': 'company',
       'ผู้ดูแลระบบ': 'admin'
     };
 
@@ -376,7 +374,6 @@ const AdminUserManagementPage = () => {
       case 'admin': return <span className="status-badge" style={{background: '#805ad5', color: 'white'}}>ผู้ดูแลระบบ</span>;
       case 'advisor': return <span className="status-badge" style={{background: '#3182ce', color: 'white'}}>อาจารย์</span>;
       case 'student': return <span className="status-badge" style={{background: '#38a169', color: 'white'}}>นักศึกษา</span>;
-      case 'company': return <span className="status-badge" style={{background: '#d69e2e', color: 'white'}}>บริษัท</span>;
       default: return <span className="status-badge">{role}</span>;
     }
   };
@@ -484,7 +481,7 @@ const AdminUserManagementPage = () => {
             <span>ตรวจสอบการชำระเงิน</span>
           </Link>
           <Link to="/admin-dashboard/checkins" className="nav-item">
-            <span>เช็คชื่อรายวัน</span>
+            <span>รายงานประจำวัน</span>
           </Link>
           <Link to="/admin-dashboard/attendance-overview" className="nav-item">
             <span>ภาพรวมรายบุคคล</span>
@@ -570,7 +567,7 @@ const AdminUserManagementPage = () => {
                           <TableCell>{row.department}</TableCell>
                           <TableCell>{row.contactPerson}</TableCell>
                           <TableCell>{row.phone}</TableCell>
-                          <TableCell>{row.address}</TableCell>
+                          <TableCell>{typeof row.address === 'object' && row.address !== null ? Object.values(row.address).filter(Boolean).join(' ') : (row.address || '-')}</TableCell>
                           <TableCell>{row.password}</TableCell>
                         </TableRow>
                       ))}
@@ -617,7 +614,6 @@ const AdminUserManagementPage = () => {
                 <MenuItem value="all">ทุกบทบาท</MenuItem>
                 <MenuItem value="student">นักศึกษา</MenuItem>
                 <MenuItem value="advisor">อาจารย์</MenuItem>
-                <MenuItem value="company">บริษัท</MenuItem>
                 <MenuItem value="admin">ผู้ดูแลระบบ</MenuItem>
               </TextField>
 
@@ -686,12 +682,6 @@ const AdminUserManagementPage = () => {
                     <TableCell>
                       {user.role === 'student' && user.studentId && <div>รหัส: {user.studentId}</div>}
                       {user.department && <div style={{fontSize: '0.85em', color: '#666'}}>สาขา: {user.department}</div>}
-                      {user.role === 'company' && (
-                        <>
-                           {user.contactPerson && <div style={{fontSize: '0.85em', color: '#666'}}>ผู้ติดต่อ: {user.contactPerson}</div>}
-                           {user.phone && <div style={{fontSize: '0.85em', color: '#666'}}>โทร: {user.phone}</div>}
-                        </>
-                      )}
                     </TableCell>
                       <TableCell>
                         <div className="user-row-actions">
@@ -753,7 +743,7 @@ const AdminUserManagementPage = () => {
             <TextField
               fullWidth
               size="small"
-              label={formData.role === 'company' ? 'ชื่อบริษัท' : 'ชื่อ-นามสกุล'}
+              label="ชื่อ-นามสกุล"
               name="name"
               value={formData.name}
               onChange={handleInputChange}
@@ -773,7 +763,6 @@ const AdminUserManagementPage = () => {
             >
               <MenuItem value="student">นักศึกษา</MenuItem>
               <MenuItem value="advisor">อาจารย์ที่ปรึกษา</MenuItem>
-              <MenuItem value="company">บริษัท</MenuItem>
               <MenuItem value="admin">ผู้ดูแลระบบ</MenuItem>
             </TextField>
 
@@ -805,39 +794,6 @@ const AdminUserManagementPage = () => {
               </TextField>
             )}
 
-            {formData.role === 'company' && (
-              <>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="ชื่อผู้ติดต่อ"
-                  name="contactPerson"
-                  value={formData.contactPerson}
-                  onChange={handleInputChange}
-                />
-
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="เบอร์โทรศัพท์"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                />
-
-                <TextField
-                  fullWidth
-                  size="small"
-                  multiline
-                  rows={3}
-                  label="ที่อยู่บริษัท"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  sx={{ gridColumn: '1 / -1' }}
-                />
-              </>
-            )}
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 1.5 }}>

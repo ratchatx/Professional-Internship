@@ -174,7 +174,7 @@ const AdminAttendanceOverviewPage = () => {
             <span>ตรวจสอบการชำระเงิน</span>
           </Link>
           <Link to="/admin-dashboard/checkins" className="nav-item">
-            <span>เช็คชื่อรายวัน</span>
+            <span>รายงานประจำวัน</span>
           </Link>
           <Link to="/admin-dashboard/attendance-overview" className="nav-item active">
             <span>ภาพรวมรายบุคคล</span>
@@ -196,8 +196,8 @@ const AdminAttendanceOverviewPage = () => {
       <main className="admin-main">
         <header className="admin-header">
           <div>
-            <h1>ภาพรวมการเช็คชื่อรายบุคคล</h1>
-            <p>ดูสรุปการเช็คชื่อของนักศึกษาแต่ละคน</p>
+            <h1>ภาพรวมรายงานประจำวันรายบุคคล</h1>
+            <p>ดูสรุปรายงานประจำวันของนักศึกษาแต่ละคน</p>
           </div>
           <div className="user-info">
             <span>{adminName}</span>
@@ -212,7 +212,7 @@ const AdminAttendanceOverviewPage = () => {
           </div>
           <div className="attendance-stat-card">
             <div className="stat-value">{globalStats.total}</div>
-            <div className="stat-label">รายการเช็คชื่อทั้งหมด</div>
+            <div className="stat-label">รายงานประจำวันทั้งหมด</div>
           </div>
           <div className="attendance-stat-card present">
             <div className="stat-value">{globalStats.present}</div>
@@ -259,7 +259,7 @@ const AdminAttendanceOverviewPage = () => {
           </div>
 
           {filteredStudents.length === 0 ? (
-            <div className="attendance-empty">ยังไม่มีข้อมูลการเช็คชื่อ</div>
+            <div className="attendance-empty">ยังไม่มีข้อมูลรายงานประจำวัน</div>
           ) : (
             <div className="student-cards-grid">
               {filteredStudents.map((student) => {
@@ -303,7 +303,7 @@ const AdminAttendanceOverviewPage = () => {
                         <button className="detail-close-btn" onClick={() => setExpandedStudent(null)}>
                           ✕ ปิด
                         </button>
-                        <h4>ประวัติการเช็คชื่อ</h4>
+                        <h4>ประวัติรายงานประจำวัน</h4>
                         <TableContainer className="checkin-table-container">
                           <Table size="small" className="checkin-table" stickyHeader>
                             <TableHead>

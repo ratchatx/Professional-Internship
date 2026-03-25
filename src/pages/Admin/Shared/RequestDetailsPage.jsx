@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Snackbar, Alert as MuiAlert } from '@mui/material';
+import { Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Typography, Snackbar, Alert as MuiAlert } from '@mui/material';
+import { QRCodeSVG } from 'qrcode.react';
 import api from '../../../api/axios';
 import './RequestDetailsPage.css';
 
@@ -12,6 +13,9 @@ const RequestDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [rejectModal, setRejectModal] = useState({ open: false, reason: '' });
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
+  const [qrModal, setQrModal] = useState({ open: false, link: '' });
+  const [dispatchModal, setDispatchModal] = useState({ open: false, file: null, submitting: false, error: '' });
+  const dispatchFileInputRef = useRef(null);
 
   useEffect(() => {
     // 1. Get User Role
@@ -40,30 +44,92 @@ const RequestDetailsPage = () => {
     });
   }, [id, navigate]);
 
+  const fileToDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์ได้'));
+    reader.readAsDataURL(file);
+  });
+
   const handleApprove = async () => {
-    let newStatus = '';
-    let alertMsg = 'อนุมัติคำร้องเรียบร้อยแล้ว';
-
     if (userRole === 'advisor') {
-      newStatus = 'รอผู้ดูแลระบบตรวจสอบ';
-    } else if (userRole === 'admin') {
-      newStatus = 'รอสถานประกอบการตอบรับ';
-      alertMsg = 'ตรวจสอบและส่งคำขอไปยังสถานประกอบการเรียบร้อยแล้ว';
-    } else if (userRole === 'company') {
-      newStatus = 'อนุมัติแล้ว';
-      alertMsg = 'ตอบรับนักศึกษาเข้าฝึกงานเรียบร้อยแล้ว';
-    }
-
-    if (newStatus) {
       try {
-        await api.patch(`/requests/${id}/status`, { status: newStatus });
-        setRequest({ ...request, status: newStatus });
-        setToast({ open: true, message: alertMsg, severity: 'success' });
+        await api.patch(`/requests/${id}/status`, { status: 'รอผู้ดูแลระบบตรวจสอบ' });
+        setRequest({ ...request, status: 'รอผู้ดูแลระบบตรวจสอบ' });
+        setToast({ open: true, message: 'อนุมัติคำร้องเรียบร้อยแล้ว', severity: 'success' });
         navigate(-1);
       } catch (err) {
         setToast({ open: true, message: 'อัปเดตล้มเหลว: ' + (err.response?.data?.message || err.message), severity: 'error' });
       }
+      return;
     }
+
+    if (userRole === 'admin') {
+      if (dispatchFileInputRef.current) {
+        dispatchFileInputRef.current.value = '';
+      }
+      setDispatchModal({ open: true, file: null, submitting: false, error: '' });
+    }
+  };
+
+  const handleDispatchModalClose = () => {
+    if (dispatchFileInputRef.current) {
+      dispatchFileInputRef.current.value = '';
+    }
+    setDispatchModal({ open: false, file: null, submitting: false, error: '' });
+  };
+
+  const handleDispatchFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      setDispatchModal((prev) => ({ ...prev, error: 'รองรับเฉพาะไฟล์ PDF, JPG หรือ PNG เท่านั้น', file: null }));
+      event.target.value = '';
+      return;
+    }
+    setDispatchModal((prev) => ({ ...prev, file, error: '' }));
+  };
+
+  const handleDispatchSubmit = async () => {
+    if (!dispatchModal.file) {
+      setDispatchModal((prev) => ({ ...prev, error: 'กรุณาเลือกไฟล์หนังสือส่งตัวก่อนอนุมัติ' }));
+      return;
+    }
+    setDispatchModal((prev) => ({ ...prev, submitting: true, error: '' }));
+    try {
+      const dataUrl = await fileToDataUrl(dispatchModal.file);
+      const payload = {
+        status: 'รอสถานประกอบการตอบรับ',
+        dispatchLetter: {
+          fileName: dispatchModal.file.name,
+          mimeType: dispatchModal.file.type,
+          dataUrl,
+        },
+      };
+      await api.patch(`/requests/${id}/status`, payload);
+      const updated = { ...request, status: 'รอสถานประกอบการตอบรับ', dispatchLetter: { fileName: dispatchModal.file.name } };
+      setRequest(updated);
+      setToast({ open: true, message: 'ตรวจสอบและส่งคำขอไปยังสถานประกอบการเรียบร้อยแล้ว', severity: 'success' });
+      const link = `${window.location.origin}/public/request/${id}`;
+      setQrModal({ open: true, link });
+      handleDispatchModalClose();
+    } catch (err) {
+      setDispatchModal((prev) => ({ ...prev, submitting: false, error: err.response?.data?.message || err.message || 'อัปเดตล้มเหลว' }));
+    }
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(qrModal.link).then(() => {
+      setToast({ open: true, message: 'คัดลอกลิงก์แล้ว', severity: 'success' });
+    }).catch(() => {
+      setToast({ open: true, message: 'ไม่สามารถคัดลอกลิงก์ได้', severity: 'error' });
+    });
+  };
+
+  const handleCloseQrModal = () => {
+    setQrModal({ open: false, link: '' });
+    navigate(-1);
   };
 
   const handleReject = () => {
@@ -81,8 +147,6 @@ const RequestDetailsPage = () => {
       newStatus = 'ไม่อนุมัติ (อาจารย์)';
     } else if (userRole === 'admin') {
       newStatus = 'ไม่อนุมัติ (Admin)';
-    } else if (userRole === 'company') {
-      newStatus = 'ปฏิเสธ';
     }
 
     if (newStatus) {
@@ -144,8 +208,7 @@ const RequestDetailsPage = () => {
 
   // Determine if current user can execute actions
   const canApprove = (userRole === 'advisor' && request.status === 'รออาจารย์ที่ปรึกษาอนุมัติ') ||
-                     (userRole === 'admin' && (request.status === 'รอผู้ดูแลระบบตรวจสอบ' || request.status === 'รอผู้ดูแลระบบอนุมัติ')) ||
-                     (userRole === 'company' && request.status === 'รอสถานประกอบการตอบรับ');
+                     (userRole === 'admin' && (request.status === 'รอผู้ดูแลระบบตรวจสอบ' || request.status === 'รอผู้ดูแลระบบอนุมัติ'));
 
   return (
     <div className="request-details-container">
@@ -317,6 +380,92 @@ const RequestDetailsPage = () => {
           {toast.message}
         </MuiAlert>
       </Snackbar>
+
+      <Dialog open={dispatchModal.open} onClose={handleDispatchModalClose} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 700 }}>แนบไฟล์หนังสือส่งตัวก่อนอนุมัติ</DialogTitle>
+        <DialogContent sx={{ py: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            กรุณาอัปโหลดไฟล์ PDF หรือรูปภาพ (JPG, PNG) เพื่อใช้เป็นหนังสือส่งตัวก่อนส่งคำขอไปยังสถานประกอบการ
+          </Typography>
+          <Button variant="outlined" component="label" sx={{ mb: 2 }}>
+            เลือกไฟล์
+            <input
+              ref={dispatchFileInputRef}
+              type="file"
+              hidden
+              accept="application/pdf,image/jpeg,image/png,image/jpg"
+              onChange={handleDispatchFileChange}
+            />
+          </Button>
+          {dispatchModal.file && (
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              ไฟล์ที่เลือก: <strong>{dispatchModal.file.name}</strong>
+            </Typography>
+          )}
+          {dispatchModal.error && (
+            <Typography variant="body2" color="error">
+              {dispatchModal.error}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleDispatchModalClose} disabled={dispatchModal.submitting}>ยกเลิก</Button>
+          <Button
+            variant="contained"
+            onClick={handleDispatchSubmit}
+            disabled={dispatchModal.submitting}
+            sx={{ bgcolor: '#111', '&:hover': { bgcolor: '#000' } }}
+          >
+            {dispatchModal.submitting ? 'กำลังอัปโหลด...' : 'แนบไฟล์และอนุมัติ'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* QR Code Modal */}
+      <Dialog open={qrModal.open} onClose={handleCloseQrModal} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 700 }}>&#x0e2a;&#x0e48;&#x0e07;&#x0e04;&#x0e33;&#x0e23;&#x0e49;&#x0e2d;&#x0e07;&#x0e44;&#x0e1b;&#x0e22;&#x0e31;&#x0e07;&#x0e2a;&#x0e16;&#x0e32;&#x0e19;&#x0e1b;&#x0e23;&#x0e30;&#x0e01;&#x0e2d;&#x0e1a;&#x0e01;&#x0e32;&#x0e23;&#x0e40;&#x0e23;&#x0e35;&#x0e22;&#x0e1a;&#x0e23;&#x0e49;&#x0e2d;&#x0e22;&#x0e41;&#x0e25;&#x0e49;&#x0e27;</DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', py: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            &#x0e41;&#x0e0a;&#x0e23;&#x0e4c; QR Code &#x0e2b;&#x0e23;&#x0e37;&#x0e2d;&#x0e25;&#x0e34;&#x0e07;&#x0e01;&#x0e4c;&#x0e19;&#x0e35;&#x0e49;&#x0e43;&#x0e2b;&#x0e49;&#x0e2a;&#x0e16;&#x0e32;&#x0e19;&#x0e1b;&#x0e23;&#x0e30;&#x0e01;&#x0e2d;&#x0e1a;&#x0e01;&#x0e32;&#x0e23;&#x0e40;&#x0e1e;&#x0e37;&#x0e48;&#x0e2d;&#x0e15;&#x0e2d;&#x0e1a;&#x0e23;&#x0e31;&#x0e1a;&#x0e2b;&#x0e23;&#x0e37;&#x0e2d;&#x0e1b;&#x0e0f;&#x0e34;&#x0e40;&#x0e2a;&#x0e18;&#x0e19;&#x0e31;&#x0e01;&#x0e28;&#x0e36;&#x0e01;&#x0e29;&#x0e32;
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <Box sx={{ p: 2, bgcolor: '#fff', border: '1px solid #e0e0e0', borderRadius: 2 }}>
+              <QRCodeSVG value={qrModal.link} size={200} />
+            </Box>
+          </Box>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              bgcolor: '#f5f5f5',
+              borderRadius: 2,
+              p: 1.5,
+              border: '1px solid #e0e0e0',
+            }}
+          >
+            <Typography
+              variant="body2"
+              sx={{
+                flex: 1,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontFamily: 'monospace',
+                fontSize: '0.85rem',
+              }}
+            >
+              {qrModal.link}
+            </Typography>
+            <Button variant="contained" size="small" onClick={handleCopyLink} sx={{ flexShrink: 0, bgcolor: '#111', '&:hover': { bgcolor: '#000' } }}>
+              คัดลอก
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'center' }}>
+          <Button variant="outlined" onClick={handleCloseQrModal}>ปิด</Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

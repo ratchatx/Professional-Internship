@@ -23,7 +23,7 @@ const StudentCheckInPage = () => {
   const getRequestStatusDisplay = (status) => {
     if (status === 'รออาจารย์ที่ปรึกษาอนุมัติ') return 'รออาจารย์อนุมัติ';
     if (status === 'รอผู้ดูแลระบบอนุมัติ' || status === 'รอผู้ดูแลระบบตรวจสอบ') return 'รอแอดมินอนุมัติ';
-    if (status === 'รอสถานประกอบการตอบรับ') return 'รอบริษัทอนุมัติ';
+    if (status === 'รอสถานประกอบการตอบรับ') return 'รอสถานประกอบการตอบรับ';
     if (!status || status === 'ไม่มีคำร้อง') return 'ยังไม่มีคำร้อง';
     return status;
   };
@@ -60,10 +60,6 @@ const StudentCheckInPage = () => {
       navigate('/advisor-dashboard');
       return;
     }
-    if (parsed.role === 'company') {
-      navigate('/company-dashboard');
-      return;
-    }
     if (parsed.role !== 'student') {
       navigate('/login');
       return;
@@ -87,7 +83,7 @@ const StudentCheckInPage = () => {
       setCanCheckIn(isInternshipStarted);
 
       if (!isInternshipStarted) {
-        setMessage('ยังไม่สามารถใช้งานเช็คชื่อรายวันได้ กรุณารอให้ผู้ดูแลระบบกดเริ่มฝึกงานก่อน');
+        setMessage('ยังไม่สามารถใช้งานรายงานประจำวันได้ กรุณารอให้ผู้ดูแลระบบกดเริ่มฝึกงานก่อน');
         return;
       }
 
@@ -118,7 +114,7 @@ const StudentCheckInPage = () => {
     if (!user || !canCheckIn) return;
 
     if (form.date !== todayDate) {
-      setMessage('เช็คชื่อได้เฉพาะวันที่ปัจจุบันเท่านั้น');
+      setMessage('รายงานประจำวันได้เฉพาะวันที่ปัจจุบันเท่านั้น');
       return;
     }
 
@@ -134,7 +130,7 @@ const StudentCheckInPage = () => {
         note: form.note || '',
       });
 
-      setMessage('บันทึกการเช็คชื่อเรียบร้อยแล้ว');
+      setMessage('บันทึกรายงานประจำวันเรียบร้อยแล้ว');
 
       // Reload checkins from API
       const checkinRes = await api.get(`/checkins?studentId=${studentId}`);
@@ -143,7 +139,7 @@ const StudentCheckInPage = () => {
       setEntries(ownEntries);
     } catch (error) {
       if (error.response?.status === 409) {
-        setMessage('คุณเช็คชื่อวันที่นี้แล้ว (เช็คชื่อได้วันละ 1 ครั้ง)');
+        setMessage('คุณรายงานประจำวันนี้แล้ว (รายงานได้วันละ 1 ครั้ง)');
       } else {
         setMessage('เกิดข้อผิดพลาด: ' + (error.response?.data?.message || error.message));
       }
@@ -177,7 +173,7 @@ const StudentCheckInPage = () => {
             <span>หลักฐานการชำระออกฝึก</span>
           </Link>
           <Link to="/dashboard/check-in" className="nav-item active">
-            <span>เช็คชื่อรายวัน</span>
+            <span>รายงานประจำวัน</span>
           </Link>
           <Link to="/dashboard/profile" className="nav-item">
             <span>โปรไฟล์</span>
@@ -193,7 +189,7 @@ const StudentCheckInPage = () => {
       <main className="dashboard-main">
         <header className="dashboard-header">
           <div>
-            <h1>เช็คชื่อรายวัน</h1>
+            <h1>รายงานประจำวัน</h1>
             <p>รายงานตัวให้เจ้าหน้าที่รับทราบในแต่ละวัน</p>
           </div>
           <div className="user-info">
@@ -204,7 +200,7 @@ const StudentCheckInPage = () => {
         <div className="content-wrapper">
           {!canCheckIn ? (
             <div className="checkin-card">
-              <h3>ยังไม่สามารถเช็คชื่อได้</h3>
+              <h3>ยังไม่สามารถรายงานประจำวันได้</h3>
               <p style={{ marginTop: '0.5rem' }}>
                 สถานะคำร้องปัจจุบัน:{' '}
                 <span className="status-badge" style={getRequestStatusStyle(currentRequestStatus)}>
@@ -222,7 +218,7 @@ const StudentCheckInPage = () => {
           ) : (
             <>
               <div className="checkin-card">
-                <h3>บันทึกการเช็คชื่อ</h3>
+                <h3>บันทึกรายงานประจำวัน</h3>
                 <p style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
                   สถานะคำร้องปัจจุบัน:{' '}
                   <span className="status-badge" style={getRequestStatusStyle(currentRequestStatus)}>
@@ -240,7 +236,7 @@ const StudentCheckInPage = () => {
                         value={form.date}
                         onChange={() => {}}
                         inputProps={{ min: todayDate, max: todayDate, readOnly: true }}
-                        helperText="ระบบกำหนดให้เช็คชื่อได้เฉพาะวันปัจจุบัน"
+                        helperText="ระบบกำหนดให้รายงานได้เฉพาะวันปัจจุบัน"
                         InputLabelProps={{ shrink: true }}
                         required
                       />
@@ -272,14 +268,14 @@ const StudentCheckInPage = () => {
                     </div>
                   </div>
                   <div className="checkin-actions">
-                    <Button type="submit" variant="contained" className="checkin-submit">บันทึกเช็คชื่อ</Button>
+                    <Button type="submit" variant="contained" className="checkin-submit">บันทึกรายงาน</Button>
                   </div>
                 </form>
                 {message && <div className="checkin-message">{message}</div>}
               </div>
 
               <div className="checkin-table-wrapper">
-                <h3>ประวัติการเช็คชื่อ</h3>
+                <h3>ประวัติรายงานประจำวัน</h3>
                 <TableContainer className="checkin-table-container">
                   <Table size="small" className="checkin-table" stickyHeader>
                     <TableHead>
@@ -292,7 +288,7 @@ const StudentCheckInPage = () => {
                     <TableBody>
                       {entries.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={3}>ยังไม่มีประวัติการเช็คชื่อ</TableCell>
+                          <TableCell colSpan={3}>ยังไม่มีประวัติรายงานประจำวัน</TableCell>
                         </TableRow>
                       ) : (
                         entries.map((entry) => (

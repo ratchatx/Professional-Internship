@@ -93,34 +93,16 @@ const HomePage = () => {
 
       if (!token) {
         const publicRes = await api.get('/public/companies', { headers: { Authorization: undefined } });
-        const companies = publicRes.data.data || [];
+        const companies = (publicRes.data.data || []).map((c) => ({
+          ...c,
+          address: typeof c.address === 'object' && c.address !== null ? formatAddress(c.address) : (c.address || '-'),
+        }));
         setCompanyCatalog(companies.length ? companies : fallbackCompanies);
         return;
       }
 
-      const [usersRes, reqsRes] = await Promise.all([
-        api.get('/users').catch(() => ({ data: { data: [] } })),
-        api.get('/requests').catch(() => ({ data: { data: [] } })),
-      ]);
-      const users = usersRes.data.data || [];
+      const reqsRes = await api.get('/requests').catch(() => ({ data: { data: [] } }));
       const requests = reqsRes.data.data || [];
-
-      users
-        .filter((item) => item.role === 'company')
-        .forEach((company) => {
-          const companyName = company.companyName || company.name || company.full_name || company.username || '';
-          const key = normalizeCompanyName(companyName);
-          if (!key) return;
-          map.set(key, {
-            name: companyName,
-            businessType: company.businessType || 'ไม่ระบุประเภทธุรกิจ',
-            address: formatAddress(company.address),
-            source: 'จากบัญชีบริษัท',
-            imageUrl: company.imageUrl || company.logo || getCompanyImage(key),
-            contactPerson: company.contactPerson || '',
-            phone: company.phone || '',
-          });
-        });
 
       requests.forEach((request) => {
         const companyName = request.companyName || request.company || request.details?.companyName || '';
@@ -197,13 +179,11 @@ const HomePage = () => {
   const getDashboardPath = (role) => {
     if (role === 'admin') return '/admin-dashboard';
     if (role === 'advisor') return '/advisor-dashboard';
-    if (role === 'company') return '/company-dashboard';
     return '/dashboard';
   };
 
   const getProfilePath = (role) => {
     if (role === 'admin') return '/admin-dashboard/profile';
-    if (role === 'company') return '/company-dashboard/profile';
     if (role === 'student') return '/dashboard/profile';
     return null;
   };
@@ -330,7 +310,7 @@ const HomePage = () => {
               )}
               <h3>{company.name}</h3>
               <p>{company.businessType}</p>
-              <p>พื้นที่: {company.address}</p>
+              <p>พื้นที่: {typeof company.address === 'object' && company.address !== null ? formatAddress(company.address) : (company.address || '-')}</p>
               <p className="catalog-source">{company.source}</p>
             </div>
           ))}

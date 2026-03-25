@@ -100,7 +100,7 @@ const PaymentProofPage = () => {
             <span>หลักฐานการชำระเงิน</span>
           </Link>
           <Link to="/dashboard/check-in" className="nav-item">
-            <span>เช็คชื่อรายวัน</span>
+            <span>รายงานประจำวัน</span>
           </Link>
           <Link to="/dashboard/profile" className="nav-item">
             <span>โปรไฟล์</span>

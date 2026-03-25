@@ -42,10 +42,6 @@ const DashboardPage = () => {
                  navigate('/advisor-dashboard'); 
                  return;
               }
-              if (user.role === 'company') {
-                 navigate('/company-dashboard'); 
-                 return;
-              }
               if (user.role !== 'student') {
                  navigate('/login'); 
                  return;
@@ -268,7 +264,7 @@ const DashboardPage = () => {
             <span>หลักฐานการชำระออกฝึก</span>
           </Link>
           <Link to="/dashboard/check-in" className="nav-item">
-            <span>เช็คชื่อรายวัน</span>
+            <span>รายงานประจำวัน</span>
           </Link>
           <Link to="/dashboard/profile" className="nav-item">
             <span>โปรไฟล์</span>

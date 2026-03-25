@@ -282,7 +282,7 @@ const AdminReportsPage = () => {
           <Link to="/admin-dashboard/students" className="nav-item"><span>นักศึกษา</span></Link>
           <Link to="/admin-dashboard/users" className="nav-item"><span>จัดการผู้ใช้</span></Link>
           <Link to="/admin-dashboard/payments" className="nav-item"><span>ตรวจสอบการชำระเงิน</span></Link>
-          <Link to="/admin-dashboard/checkins" className="nav-item"><span>เช็คชื่อรายวัน</span></Link>
+          <Link to="/admin-dashboard/checkins" className="nav-item"><span>รายงานประจำวัน</span></Link>
           <Link to="/admin-dashboard/attendance-overview" className="nav-item"><span>ภาพรวมรายบุคคล</span></Link>
           <Link to="/admin-dashboard/reports" className="nav-item active"><span>รายงาน</span></Link>
           <Link to="/admin-dashboard/profile" className="nav-item"><span>โปรไฟล์</span></Link>

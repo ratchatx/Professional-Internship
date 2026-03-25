@@ -234,7 +234,7 @@ const AdvisorProgressCheckPage = () => {
         <header className="admin-header">
           <div>
             <h1>เช็ค Progress นักศึกษา</h1>
-            <p>ติดตามความคืบหน้าการฝึกงานและประวัติการเช็คชื่อ (ดูอย่างเดียว) • {advisorName}</p>
+            <p>ติดตามความคืบหน้าการฝึกงานและประวัติรายงานประจำวัน (ดูอย่างเดียว) • {advisorName}</p>
           </div>
           <div className="user-info">
             <span>สาขา: {advisorDept || '-'}</span>
@@ -271,7 +271,7 @@ const AdvisorProgressCheckPage = () => {
                   <TableCell>บริษัท</TableCell>
                   <TableCell>ช่วงฝึกงาน</TableCell>
                   <TableCell sx={{ minWidth: 180 }}>ความคืบหน้า</TableCell>
-                  <TableCell>จำนวนเช็คชื่อ</TableCell>
+                  <TableCell>จำนวนรายงาน</TableCell>
                   <TableCell>เช็คล่าสุด</TableCell>
                   <TableCell>ดูประวัติ</TableCell>
                 </TableRow>
@@ -308,7 +308,7 @@ const AdvisorProgressCheckPage = () => {
                       <TableCell>{row.latestCheckinDate}</TableCell>
                       <TableCell>
                         <Button size="small" variant="outlined" onClick={() => openHistoryDialog(row)}>
-                          ดูเช็คชื่อ
+                          ดูรายงานประจำวัน
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -322,7 +322,7 @@ const AdvisorProgressCheckPage = () => {
 
       <Dialog open={historyDialog.open} onClose={closeHistoryDialog} fullWidth maxWidth="md">
         <DialogTitle>
-          ประวัติการเช็คชื่อ: {historyDialog.studentName} ({historyDialog.studentId})
+          ประวัติรายงานประจำวัน: {historyDialog.studentName} ({historyDialog.studentId})
         </DialogTitle>
         <DialogContent>
           <TableContainer component={Box} sx={{ mt: 1 }}>
@@ -339,7 +339,7 @@ const AdvisorProgressCheckPage = () => {
                 {historyDialog.entries.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} align="center" sx={{ py: 2.5 }}>
-                      ยังไม่มีประวัติการเช็คชื่อ
+                      ยังไม่มีประวัติรายงานประจำวัน
                     </TableCell>
                   </TableRow>
                 ) : (

@@ -6,6 +6,7 @@ import * as am5percent from '@amcharts/amcharts5/percent';
 import am5themes_Animated from '@amcharts/amcharts5/themes/Animated';
 import {
   Alert as MuiAlert,
+  Badge,
   Box,
   Button,
   Card,
@@ -15,7 +16,9 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   Paper,
+  Popover,
   Stack,
   Table,
   TableBody,
@@ -24,8 +27,11 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import { BellIcon } from '@heroicons/react/24/solid';
+import { QRCodeSVG } from 'qrcode.react';
 import { STAT_EMOJI } from '../../../utils/statEmojis';
 import './AdminDashboardPage.css';
 
@@ -42,7 +48,12 @@ const AdminDashboardPage = () => {
   });
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
+  const [qrModal, setQrModal] = useState({ open: false, requestId: null, link: '' });
+  const [dispatchModal, setDispatchModal] = useState({ open: false, requestId: null, file: null, submitting: false, error: '' });
+  const [semesterModal, setSemesterModal] = useState({ open: false, requestId: null });
   const pieChartRef = useRef(null);
+  const dispatchFileInputRef = useRef(null);
+  const [notifAnchor, setNotifAnchor] = useState(null);
 
   const getAdminDisplayStatus = (status) => {
     if (status === 'รออาจารย์ที่ปรึกษาอนุมัติ') return 'รออาจารย์อนุมัติ';
@@ -233,15 +244,78 @@ const AdminDashboardPage = () => {
   };
 
 
-  const handleApprove = async (requestId) => {
-    const newStatus = 'รอสถานประกอบการตอบรับ';
-    try {
-      await api.patch(`/requests/${requestId}/status`, { status: newStatus });
-      setAllRequests(allRequests.map(r => String(r.id) === String(requestId) ? {...r, status: newStatus} : r));
-      alert(`ตรวจสอบและส่งคำขอไปยังสถานประกอบการเรียบร้อยแล้ว (สถานะ: ${newStatus})`);
-    } catch (err) {
-      alert('อัปเดตสถานะล้มเหลว: ' + (err.response?.data?.message || err.message));
+  const fileToDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์ได้'));
+    reader.readAsDataURL(file);
+  });
+
+  const handleApprove = (requestId) => {
+    if (dispatchFileInputRef.current) {
+      dispatchFileInputRef.current.value = '';
     }
+    setDispatchModal({ open: true, requestId, file: null, submitting: false, error: '' });
+  };
+
+  const handleDispatchModalClose = () => {
+    if (dispatchFileInputRef.current) {
+      dispatchFileInputRef.current.value = '';
+    }
+    setDispatchModal({ open: false, requestId: null, file: null, submitting: false, error: '' });
+  };
+
+  const handleDispatchFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      setDispatchModal((prev) => ({ ...prev, error: 'รองรับเฉพาะไฟล์ PDF, JPG หรือ PNG เท่านั้น', file: null }));
+      event.target.value = '';
+      return;
+    }
+    setDispatchModal((prev) => ({ ...prev, file, error: '' }));
+  };
+
+  const handleDispatchSubmit = async () => {
+    if (!dispatchModal.file) {
+      setDispatchModal((prev) => ({ ...prev, error: 'กรุณาเลือกไฟล์หนังสือส่งตัวก่อนอนุมัติ' }));
+      return;
+    }
+    setDispatchModal((prev) => ({ ...prev, submitting: true, error: '' }));
+    try {
+      const dataUrl = await fileToDataUrl(dispatchModal.file);
+      const payload = {
+        status: 'รอสถานประกอบการตอบรับ',
+        dispatchLetter: {
+          fileName: dispatchModal.file.name,
+          mimeType: dispatchModal.file.type,
+          dataUrl,
+        },
+      };
+      const requestId = dispatchModal.requestId;
+      await api.patch(`/requests/${requestId}/status`, payload);
+      setAllRequests(allRequests.map(r => String(r.id) === String(requestId)
+        ? { ...r, status: 'รอสถานประกอบการตอบรับ', dispatchLetter: { fileName: dispatchModal.file.name } }
+        : r));
+      const link = `${window.location.origin}/public/request/${requestId}`;
+      setQrModal({ open: true, requestId, link });
+      handleDispatchModalClose();
+    } catch (err) {
+      setDispatchModal((prev) => ({ ...prev, submitting: false, error: err.response?.data?.message || err.message || 'อัปเดตสถานะล้มเหลว' }));
+    }
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(qrModal.link).then(() => {
+      alert('คัดลอกลิงก์แล้ว');
+    }).catch(() => {
+      alert('ไม่สามารถคัดลอกลิงก์ได้');
+    });
+  };
+
+  const handleCloseQrModal = () => {
+    setQrModal({ open: false, requestId: null, link: '' });
   };
 
   const handleUpdateStatus = async (requestId, newStatus) => {
@@ -253,6 +327,24 @@ const AdminDashboardPage = () => {
       alert('อัปเดตสถานะล้มเหลว: ' + (err.response?.data?.message || err.message));
     }
   };
+
+  const handleOpenSemesterModal = (requestId) => {
+    setSemesterModal({ open: true, requestId });
+  };
+
+  const handleSelectSemester = async (semester) => {
+    const requestId = semesterModal.requestId;
+    setSemesterModal({ open: false, requestId: null });
+    try {
+      await api.patch(`/requests/${requestId}/status`, { status: 'ออกฝึกงาน', semester });
+      setAllRequests(allRequests.map(r => String(r.id) === String(requestId) ? {...r, status: 'ออกฝึกงาน', semester} : r));
+      alert(`เริ่มฝึกงาน ภาคเรียนที่ ${semester} เรียบร้อยแล้ว`);
+    } catch (err) {
+      alert('อัปเดตสถานะล้มเหลว: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const getBuddhistYear = () => new Date().getFullYear() + 543;
 
   const handleReject = (requestId) => {
     setRejectModal({ open: true, requestId, reason: '' });
@@ -303,7 +395,31 @@ const AdminDashboardPage = () => {
     <div className="admin-dashboard-container">
       <div className="mobile-top-navbar">
         <Link to="/" className="mobile-top-logo" aria-label="LASC Home"></Link>
-        <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+        <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto' }}>
+          <IconButton
+            onClick={(e) => setNotifAnchor(e.currentTarget)}
+            size="small"
+            sx={{
+              p: 0.75,
+              bgcolor: statusCounts.pendingAdmin > 0 ? '#fff3cd' : 'transparent',
+              border: '1px solid',
+              borderColor: statusCounts.pendingAdmin > 0 ? '#f59e0b' : 'transparent',
+              borderRadius: 1.5,
+              mr: 0.5,
+              '&:hover': { bgcolor: statusCounts.pendingAdmin > 0 ? '#fef3c7' : '#f1f5f9' },
+            }}
+          >
+            <Badge
+              badgeContent={statusCounts.pendingAdmin}
+              color="warning"
+              max={99}
+              sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem', minWidth: 14, height: 14 } }}
+            >
+              <BellIcon style={{ width: 18, height: 18, color: statusCounts.pendingAdmin > 0 ? '#d97706' : '#64748b' }} />
+            </Badge>
+          </IconButton>
+          <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(!isMenuOpen)}>☰</button>
+        </div>
       </div>
       <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
@@ -324,7 +440,7 @@ const AdminDashboardPage = () => {
             <span>ตรวจสอบการชำระเงิน</span>
           </Link>
           <Link to="/admin-dashboard/checkins" className="nav-item">
-            <span>เช็คชื่อรายวัน</span>
+            <span>รายงานประจำวัน</span>
           </Link>
           <Link to="/admin-dashboard/attendance-overview" className="nav-item">
             <span>ภาพรวมรายบุคคล</span>
@@ -420,7 +536,7 @@ const AdminDashboardPage = () => {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', xl: '1.5fr 1fr' },
+            gridTemplateColumns: { xs: '1fr' },
             gap: 2,
             mb: 3,
           }}
@@ -456,18 +572,6 @@ const AdminDashboardPage = () => {
             </Box>
           </Paper>
 
-          <Paper elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2, p: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-              แจ้งเตือนด่วน
-            </Typography>
-            <Stack spacing={1.2}>
-              {urgentAlerts.map((notice, index) => (
-                <MuiAlert key={`${notice.severity}-${index}`} severity={notice.severity} variant="outlined">
-                  {notice.text}
-                </MuiAlert>
-              ))}
-            </Stack>
-          </Paper>
         </Box>
 
         <Paper elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2, p: 2, mb: 3 }}>
@@ -591,12 +695,12 @@ const AdminDashboardPage = () => {
                           >ลบ</button>
                           {(request.status === 'รอผู้ดูแลระบบตรวจสอบ' || request.status === 'รอผู้ดูแลระบบอนุมัติ') && (
                             <>
-                              <button className="btn-approve" onClick={() => handleApprove(request.id)} title="ส่งต่อให้สถานประกอบการ">✓</button>
+                              <button className="btn-approve" onClick={() => handleApprove(request.id)} title="อนุมัติคำร้อง">✓</button>
                               <button className="btn-reject" onClick={() => handleReject(request.id)} title="ไม่อนุมัติ">✗</button>
                             </>
                           )}
                           {request.status === 'อนุมัติแล้ว' && (
-                            <button className="btn-next-step" onClick={() => handleUpdateStatus(request.id, 'ออกฝึกงาน')} style={{ padding: '5px 10px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>เริ่มฝึกงาน</button>
+                            <button className="btn-next-step" onClick={() => handleOpenSemesterModal(request.id)} style={{ padding: '5px 10px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>เริ่มฝึกงาน</button>
                           )}
                           {request.status === 'ออกฝึกงาน' && (
                             <button className="btn-finish" onClick={() => handleUpdateStatus(request.id, 'ฝึกงานเสร็จแล้ว')} style={{ padding: '5px 10px', background: '#48bb78', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>จบการฝึกงาน</button>
@@ -639,6 +743,136 @@ const AdminDashboardPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Semester Selection Modal */}
+      <Dialog open={semesterModal.open} onClose={() => setSemesterModal({ open: false, requestId: null })} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 700 }}>เลือกภาคเรียนที่ออกฝึกงาน</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, py: 3, alignItems: 'center' }}>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => handleSelectSemester(`1/${getBuddhistYear()}`)}
+            sx={{ minWidth: 200, fontWeight: 700, bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' } }}
+          >
+            1/{getBuddhistYear()}
+          </Button>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => handleSelectSemester(`2/${getBuddhistYear()}`)}
+            sx={{ minWidth: 200, fontWeight: 700, bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' } }}
+          >
+            2/{getBuddhistYear()}
+          </Button>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
+          <Button variant="outlined" onClick={() => setSemesterModal({ open: false, requestId: null })}>ยกเลิก</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dispatch Letter Modal */}
+      <Dialog open={dispatchModal.open} onClose={handleDispatchModalClose} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>แนบไฟล์หนังสือส่งตัวก่อนอนุมัติ</DialogTitle>
+        <DialogContent sx={{ py: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            กรุณาอัปโหลดไฟล์หนังสือส่งตัว (PDF, JPG หรือ PNG) เพื่อแนบไปกับการอนุมัติคำร้อง
+          </Typography>
+          <Button variant="outlined" component="label" sx={{ mb: 2 }}>
+            เลือกไฟล์
+            <input
+              ref={dispatchFileInputRef}
+              type="file"
+              hidden
+              accept="application/pdf,image/jpeg,image/png,image/jpg"
+              onChange={handleDispatchFileChange}
+            />
+          </Button>
+          {dispatchModal.file && (
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              ไฟล์ที่เลือก: <strong>{dispatchModal.file.name}</strong>
+            </Typography>
+          )}
+          {dispatchModal.error && (
+            <Typography variant="body2" color="error">
+              {dispatchModal.error}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleDispatchModalClose} disabled={dispatchModal.submitting}>ยกเลิก</Button>
+          <Button
+            variant="contained"
+            onClick={handleDispatchSubmit}
+            disabled={dispatchModal.submitting}
+            sx={{ bgcolor: '#111111', '&:hover': { bgcolor: '#000000' } }}
+          >
+            {dispatchModal.submitting ? 'กำลังอัปโหลด...' : 'แนบไฟล์และอนุมัติ'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* QR Code Modal */}
+      <Dialog open={qrModal.open} onClose={handleCloseQrModal} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 700 }}>\u0e2a\u0e48\u0e07\u0e04\u0e33\u0e23\u0e49\u0e2d\u0e07\u0e44\u0e1b\u0e22\u0e31\u0e07\u0e2a\u0e16\u0e32\u0e19\u0e1b\u0e23\u0e30\u0e01\u0e2d\u0e1a\u0e01\u0e32\u0e23\u0e40\u0e23\u0e35\u0e22\u0e1a\u0e23\u0e49\u0e2d\u0e22\u0e41\u0e25\u0e49\u0e27</DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', py: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            \u0e41\u0e0a\u0e23\u0e4c QR Code \u0e2b\u0e23\u0e37\u0e2d\u0e25\u0e34\u0e07\u0e01\u0e4c\u0e19\u0e35\u0e49\u0e43\u0e2b\u0e49\u0e2a\u0e16\u0e32\u0e19\u0e1b\u0e23\u0e30\u0e01\u0e2d\u0e1a\u0e01\u0e32\u0e23\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e15\u0e2d\u0e1a\u0e23\u0e31\u0e1a\u0e2b\u0e23\u0e37\u0e2d\u0e1b\u0e0f\u0e34\u0e40\u0e2a\u0e18\u0e19\u0e31\u0e01\u0e28\u0e36\u0e01\u0e29\u0e32
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <Box sx={{ p: 2, bgcolor: '#fff', border: '1px solid #e0e0e0', borderRadius: 2 }}>
+              <QRCodeSVG value={qrModal.link} size={200} />
+            </Box>
+          </Box>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              bgcolor: '#f5f5f5',
+              borderRadius: 2,
+              p: 1.5,
+              border: '1px solid #e0e0e0',
+            }}
+          >
+            <Typography
+              variant="body2"
+              sx={{
+                flex: 1,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontFamily: 'monospace',
+                fontSize: '0.85rem',
+              }}
+            >
+              {qrModal.link}
+            </Typography>
+            <Button variant="contained" size="small" onClick={handleCopyLink} sx={{ flexShrink: 0, bgcolor: '#111', '&:hover': { bgcolor: '#000' } }}>
+              คัดลอก
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'center' }}>
+          <Button variant="outlined" onClick={handleCloseQrModal}>ปิด</Button>
+        </DialogActions>
+      </Dialog>
+      <Popover
+        open={Boolean(notifAnchor)}
+        anchorEl={notifAnchor}
+        onClose={() => setNotifAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        PaperProps={{ sx: { width: 320, p: 2, mt: 1, borderRadius: 2 } }}
+      >
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>แจ้งเตือน</Typography>
+        <Stack spacing={1}>
+          {urgentAlerts.map((notice, i) => (
+            <MuiAlert key={i} severity={notice.severity} variant="outlined" sx={{ py: 0.5, fontSize: '0.82rem' }}>
+              {notice.text}
+            </MuiAlert>
+          ))}
+        </Stack>
+      </Popover>
     </div>
   );
 };

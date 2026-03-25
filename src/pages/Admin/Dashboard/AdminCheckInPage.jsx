@@ -153,7 +153,7 @@ const AdminCheckInPage = () => {
     });
 
     if (hasDuplicateDate) {
-      alert('นักศึกษาคนนี้มีรายการเช็คชื่อในวันที่นี้แล้ว');
+      alert('นักศึกษาคนนี้มีรายงานประจำวันในวันที่นี้แล้ว');
       return;
     }
 
@@ -187,7 +187,7 @@ const AdminCheckInPage = () => {
   };
 
   const handleDelete = async (entry) => {
-    const confirmed = await window.showMuiConfirm('ยืนยันการลบรายการเช็คชื่อนี้?', {
+    const confirmed = await window.showMuiConfirm('ยืนยันการลบรายงานประจำวันนี้?', {
       title: 'ยืนยันการลบ',
       confirmText: 'ลบรายการ',
       cancelText: 'ยกเลิก',
@@ -227,7 +227,7 @@ const AdminCheckInPage = () => {
             <span>ตรวจสอบการชำระเงิน</span>
           </Link>
           <Link to="/admin-dashboard/checkins" className="nav-item active">
-            <span>เช็คชื่อรายวัน</span>
+            <span>รายงานประจำวัน</span>
           </Link>
           <Link to="/admin-dashboard/attendance-overview" className="nav-item">
             <span>ภาพรวมรายบุคคล</span>
@@ -249,8 +249,8 @@ const AdminCheckInPage = () => {
       <main className="admin-main">
         <header className="admin-header">
           <div>
-            <h1>เช็คชื่อรายวัน</h1>
-            <p>ตรวจสอบการเช็คชื่อของนักศึกษาทุกวัน</p>
+            <h1>รายงานประจำวัน</h1>
+            <p>ตรวจสอบรายงานประจำวันของนักศึกษา</p>
           </div>
           <div className="user-info">
             <span>{adminName}</span>
@@ -329,7 +329,7 @@ const AdminCheckInPage = () => {
               <TableBody>
                 {filteredEntries.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8}>ยังไม่มีข้อมูลการเช็คชื่อ</TableCell>
+                    <TableCell colSpan={8}>ยังไม่มีข้อมูลรายงานประจำวัน</TableCell>
                   </TableRow>
                 ) : (
                   filteredEntries.map((entry) => (
@@ -361,7 +361,7 @@ const AdminCheckInPage = () => {
       </main>
 
       <Dialog open={editDialog.open} onClose={handleCloseEdit} fullWidth maxWidth="sm">
-        <DialogTitle>แก้ไขข้อมูลเช็คชื่อ</DialogTitle>
+        <DialogTitle>แก้ไขข้อมูลรายงานประจำวัน</DialogTitle>
         <DialogContent>
           <div style={{ display: 'grid', gap: 12, marginTop: 8 }}>
             <TextField
