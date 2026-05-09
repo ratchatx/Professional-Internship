@@ -25,7 +25,8 @@ const RequestDetailsPage = () => {
       return;
     }
     const user = JSON.parse(userStr);
-    setUserRole(user.role);
+    const normalizedRole = String(user.role || '').toLowerCase();
+    setUserRole(normalizedRole);
 
     // 2. Load Request Details from API
     api.get(`/requests/${id}`).then(res => {
@@ -175,6 +176,9 @@ const RequestDetailsPage = () => {
       'รอผู้ดูแลระบบอนุมัติ': { bg: '#c3dafe', color: '#434190' }, // Legacy support
       'รอสถานประกอบการตอบรับ': { bg: '#e2e8f0', color: '#2d3748' },
       'อนุมัติแล้ว': { bg: '#d4edda', color: '#155724' },
+      'ออกฝึกงาน': { bg: '#c4f1f9', color: '#0c4a6e' },
+      'ประเมินเสร็จแล้ว': { bg: '#ddd6fe', color: '#4c1d95' },
+      'ฝึกงานเสร็จแล้ว': { bg: '#fbcfe8', color: '#9d174d' },
       'ไม่อนุมัติ (อาจารย์)': { bg: '#f8d7da', color: '#721c24' },
       'ไม่อนุมัติ (Admin)': { bg: '#f8d7da', color: '#721c24' },
       'ปฏิเสธ': { bg: '#f8d7da', color: '#721c24' }
@@ -201,14 +205,23 @@ const RequestDetailsPage = () => {
 
   if (loading || !request) return <div className="loading">กำลังโหลดข้อมูล...</div>;
 
-  const statusInfo = getStatusBadge(request.status);
+  const normalizedStatus = String(request.status || '').trim();
+  const statusInfo = getStatusBadge(normalizedStatus || request.status);
   const details = request.details || {}; // Fields from NewRequestPage payload
   const studentAddress = formatAddress(details.student_info?.address);
   const companyAddress = formatAddress(details.companyAddress || details.address);
+  const internshipTermLabel = details.internshipTerm === 'term1'
+    ? 'เทอม 1 (7–15 ส.ค.)'
+    : details.internshipTerm === 'term2'
+      ? 'เทอม 2 (3–10 ม.ค.)'
+      : '';
 
   // Determine if current user can execute actions
-  const canApprove = (userRole === 'advisor' && request.status === 'รออาจารย์ที่ปรึกษาอนุมัติ') ||
-                     (userRole === 'admin' && (request.status === 'รอผู้ดูแลระบบตรวจสอบ' || request.status === 'รอผู้ดูแลระบบอนุมัติ'));
+  const isAdvisorPending = normalizedStatus === 'รออาจารย์ที่ปรึกษาอนุมัติ' || normalizedStatus === 'รออนุมัติ';
+  const isAdminPending = normalizedStatus === 'รอผู้ดูแลระบบตรวจสอบ'
+    || normalizedStatus === 'รอผู้ดูแลระบบอนุมัติ'
+    || normalizedStatus === 'รออนุมัติ';
+  const canApprove = (userRole === 'advisor' && isAdvisorPending) || (userRole === 'admin' && isAdminPending);
 
   return (
     <div className="request-details-container">
@@ -278,14 +291,23 @@ const RequestDetailsPage = () => {
         <section className="detail-section">
           <h3> ระยะเวลาการฝึกงาน</h3>
           <div className="detail-grid">
-            <div className="detail-item">
-              <span className="detail-label">วันเริ่มฝึกงาน</span>
-              <span className="detail-value">{details.startDate ? new Date(details.startDate).toLocaleDateString('th-TH') : (request.submittedDate ? new Date(request.submittedDate).toLocaleDateString('th-TH') : '-')}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">วันสิ้นสุดการฝึกงาน</span>
-              <span className="detail-value">{details.endDate ? new Date(details.endDate).toLocaleDateString('th-TH') : '-'}</span>
-            </div>
+            {internshipTermLabel ? (
+              <div className="detail-item">
+                <span className="detail-label">ช่วงฝึกงาน</span>
+                <span className="detail-value">{internshipTermLabel}</span>
+              </div>
+            ) : (
+              <>
+                <div className="detail-item">
+                  <span className="detail-label">วันเริ่มฝึกงาน</span>
+                  <span className="detail-value">{details.startDate ? new Date(details.startDate).toLocaleDateString('th-TH') : '-'}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">วันสิ้นสุดการฝึกงาน</span>
+                  <span className="detail-value">{details.endDate ? new Date(details.endDate).toLocaleDateString('th-TH') : '-'}</span>
+                </div>
+              </>
+            )}
           </div>
         </section>
 

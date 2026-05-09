@@ -156,6 +156,7 @@ const NewRequestPage = () => {
     supervisorEmail: '',
     supervisorPhone: '',
     supervisorPosition: '',
+    internshipTerm: '',
 
     // Company address fields
     companyHouse: '',
@@ -210,6 +211,7 @@ const NewRequestPage = () => {
     const decimalPart = decimalPartRaw.slice(0, 2);
     return normalized.includes('.') ? `${integerPart}.${decimalPart}` : integerPart;
   };
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -376,6 +378,7 @@ const NewRequestPage = () => {
         contactPosition: formData.supervisorPosition,
         contactEmail: formData.supervisorEmail,
         contactPhone: formData.supervisorPhone,
+        internshipTerm: formData.internshipTerm,
         description: formData.jobDescription,
         skills: formData.skills,
         studentPhoto: photoData ? { name: studentPhoto.name } : null
@@ -1022,7 +1025,24 @@ const NewRequestPage = () => {
                 />
               </div>
 
-              {/* Removed explicit internship start/end date inputs per new flow */}
+              <div className="form-group">
+                <label htmlFor="internshipTerm">ช่วงฝึกงาน *</label>
+                <TextField
+                  fullWidth
+                  size="small"
+                  select
+                  id="internshipTerm"
+                  name="internshipTerm"
+                  value={formData.internshipTerm}
+                  onChange={handleChange}
+                  required
+                >
+                  <MenuItem value="">-- เลือกเทอม --</MenuItem>
+                  <MenuItem value="term1">เทอม 1 (7–15 ส.ค.)</MenuItem>
+                  <MenuItem value="term2">เทอม 2 (3–10 ม.ค.)</MenuItem>
+                </TextField>
+                <p className="field-hint">เลือกได้เฉพาะเทอม 1 หรือเทอม 2</p>
+              </div>
 
               <h3>ข้อมูลหัวหน้าหน่วยงาน/ผู้ดูแล</h3>
               <div className="form-group">

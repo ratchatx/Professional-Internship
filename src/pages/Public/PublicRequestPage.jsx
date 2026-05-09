@@ -119,6 +119,11 @@ const PublicRequestPage = () => {
   const studentAddress = formatAddress(studentInfo.address);
   const companyAddress = formatAddress(details.companyAddress || details.address);
   const dispatchLetter = request.dispatchLetter || details.dispatchLetter;
+  const internshipTermLabel = details.internshipTerm === 'term1'
+    ? 'เทอม 1 (7–15 ส.ค.)'
+    : details.internshipTerm === 'term2'
+      ? 'เทอม 2 (3–10 ม.ค.)'
+      : '';
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f7fa' }}>
@@ -251,10 +256,16 @@ const PublicRequestPage = () => {
             {/* Internship Period */}
             <Box>
               <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>ระยะเวลาการฝึกงาน</Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-                <InfoItem label="วันเริ่มฝึกงาน" value={details.startDate ? new Date(details.startDate).toLocaleDateString('th-TH') : '-'} />
-                <InfoItem label="วันสิ้นสุด" value={details.endDate ? new Date(details.endDate).toLocaleDateString('th-TH') : '-'} />
-              </Box>
+              {internshipTermLabel ? (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr' }, gap: 1.5 }}>
+                  <InfoItem label="ช่วงฝึกงาน" value={internshipTermLabel} />
+                </Box>
+              ) : (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+                  <InfoItem label="วันเริ่มฝึกงาน" value={details.startDate ? new Date(details.startDate).toLocaleDateString('th-TH') : '-'} />
+                  <InfoItem label="วันสิ้นสุด" value={details.endDate ? new Date(details.endDate).toLocaleDateString('th-TH') : '-'} />
+                </Box>
+              )}
             </Box>
 
             <Divider />

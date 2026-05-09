@@ -39,6 +39,12 @@ const AdvisorDashboardPage = () => {
     requestId: null,
     reason: ''
   });
+  const [evaluationModal, setEvaluationModal] = useState({
+    open: false,
+    requestId: null,
+    score: '',
+    comment: ''
+  });
   const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
   const getDisplayStatus = (status) =>
@@ -48,7 +54,8 @@ const AdvisorDashboardPage = () => {
     const userStr = localStorage.getItem('user');
     if (userStr) {
       const user = JSON.parse(userStr);
-      if (user.role !== 'advisor') {
+      const normalizedRole = String(user.role || '').toLowerCase();
+      if (normalizedRole !== 'advisor') {
          navigate('/login'); 
          return;
       }
@@ -121,11 +128,62 @@ const AdvisorDashboardPage = () => {
     setRejectModal({ open: false, requestId: null, reason: '' });
   };
 
+  const handleOpenEvaluation = (requestId) => {
+    setEvaluationModal({ open: true, requestId, score: '', comment: '' });
+  };
+
+  const handleCloseEvaluation = () => {
+    setEvaluationModal({ open: false, requestId: null, score: '', comment: '' });
+  };
+
+  const handleConfirmEvaluation = async () => {
+    const scoreValue = Number(evaluationModal.score);
+    if (!Number.isFinite(scoreValue) || scoreValue < 0 || scoreValue > 100) {
+      setToast({ open: true, message: 'กรุณาระบุคะแนน 0-100 ให้ถูกต้อง', severity: 'warning' });
+      return;
+    }
+    if (!evaluationModal.comment.trim()) {
+      setToast({ open: true, message: 'กรุณาระบุคอมเมนต์ผลประเมิน', severity: 'warning' });
+      return;
+    }
+
+    const requestId = evaluationModal.requestId;
+    const formattedComment = `ผลประเมินหลังฝึกงาน\nคะแนน: ${scoreValue}/100\nคอมเมนต์: ${evaluationModal.comment.trim()}`;
+    try {
+      await api.patch(`/requests/${requestId}/status`, {
+        status: 'ประเมินเสร็จแล้ว',
+        advisor_comment: formattedComment,
+      });
+      setAllRequests(allRequests.map(r => String(r.id) === String(requestId)
+        ? { ...r, status: 'ประเมินเสร็จแล้ว', advisor_comment: formattedComment }
+        : r));
+      setToast({ open: true, message: 'บันทึกผลการประเมินหลังฝึกงานแล้ว', severity: 'success' });
+      handleCloseEvaluation();
+    } catch (err) {
+      setToast({ open: true, message: 'อัปเดตล้มเหลว: ' + (err.response?.data?.message || err.message), severity: 'error' });
+    }
+  };
+
+  const handleFinishInternship = async (requestId) => {
+    try {
+      await api.patch(`/requests/${requestId}/status`, { status: 'ฝึกงานเสร็จแล้ว' });
+      setAllRequests(allRequests.map(r => String(r.id) === String(requestId)
+        ? { ...r, status: 'ฝึกงานเสร็จแล้ว' }
+        : r));
+      setToast({ open: true, message: 'เสร็จสิ้นการฝึกงานเรียบร้อยแล้ว', severity: 'success' });
+    } catch (err) {
+      setToast({ open: true, message: 'อัปเดตล้มเหลว: ' + (err.response?.data?.message || err.message), severity: 'error' });
+    }
+  };
+
   const getStatusBadge = (status) => {
     const statusStyles = {
       'รออาจารย์ที่ปรึกษาอนุมัติ': { bg: '#fff3cd', color: '#856404' },
       'รอผู้ดูแลระบบอนุมัติ': { bg: '#c3dafe', color: '#434190' },
       'อนุมัติแล้ว': { bg: '#d4edda', color: '#155724' },
+      'ออกฝึกงาน': { bg: '#c4f1f9', color: '#0c4a6e' },
+      'ประเมินเสร็จแล้ว': { bg: '#ddd6fe', color: '#4c1d95' },
+      'ฝึกงานเสร็จแล้ว': { bg: '#fbcfe8', color: '#9d174d' },
       'ไม่อนุมัติ (อาจารย์)': { bg: '#f8d7da', color: '#721c24' },
       'ไม่อนุมัติ (Admin)': { bg: '#f8d7da', color: '#721c24' }
     };
@@ -265,9 +323,12 @@ const AdvisorDashboardPage = () => {
               </TableHead>
               <TableBody>
                 {filteredRequests.map((request) => {
-                  const statusStyle = getStatusBadge(request.status);
-                  const isPending = request.status === 'รออาจารย์ที่ปรึกษาอนุมัติ';
-                  const displayStatus = getDisplayStatus(request.status);
+                  const normalizedStatus = String(request.status || '').trim();
+                  const statusStyle = getStatusBadge(normalizedStatus);
+                  const isPending = normalizedStatus === 'รออาจารย์ที่ปรึกษาอนุมัติ';
+                  const isInterning = normalizedStatus === 'ออกฝึกงาน';
+                  const isEvaluated = normalizedStatus === 'ประเมินเสร็จแล้ว';
+                  const displayStatus = getDisplayStatus(normalizedStatus);
                   return (
                     <TableRow key={request.id} hover>
                       <TableCell>{request.studentId}</TableCell>
@@ -291,7 +352,7 @@ const AdvisorDashboardPage = () => {
                         </Button>
                       </TableCell>
                       <TableCell className="action-column">
-                        {isPending ? (
+                        {isPending && (
                           <div className="advisor-action-buttons">
                             <Button size="small" variant="contained" color="success" onClick={() => handleApprove(request.id)}>
                               อนุมัติ
@@ -300,7 +361,18 @@ const AdvisorDashboardPage = () => {
                               ปฏิเสธ
                             </Button>
                           </div>
-                        ) : (
+                        )}
+                        {!isPending && isInterning && (
+                          <Button size="small" variant="contained" color="secondary" onClick={() => handleOpenEvaluation(request.id)}>
+                            ประเมินหลังฝึกงาน
+                          </Button>
+                        )}
+                        {!isPending && !isInterning && isEvaluated && (
+                          <Button size="small" variant="contained" color="success" onClick={() => handleFinishInternship(request.id)}>
+                            เสร็จสิ้นการฝึกงาน
+                          </Button>
+                        )}
+                        {!isPending && !isInterning && !isEvaluated && (
                           <span className="muted-action">-</span>
                         )}
                       </TableCell>
@@ -335,6 +407,37 @@ const AdvisorDashboardPage = () => {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={handleRejectClose}>ยกเลิก</Button>
           <Button variant="contained" color="error" onClick={handleRejectConfirm}>ยืนยันการปฏิเสธ</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={evaluationModal.open} onClose={handleCloseEvaluation} fullWidth maxWidth="sm">
+        <DialogTitle>บันทึกผลประเมินหลังฝึกงาน</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            margin="dense"
+            label="คะแนน (0-100)"
+            type="number"
+            inputProps={{ min: 0, max: 100 }}
+            value={evaluationModal.score}
+            onChange={(event) => setEvaluationModal((prev) => ({ ...prev, score: event.target.value }))}
+          />
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            margin="dense"
+            label="คอมเมนต์ผลประเมิน"
+            value={evaluationModal.comment}
+            onChange={(event) => setEvaluationModal((prev) => ({ ...prev, comment: event.target.value }))}
+            placeholder="สรุปผลการประเมินและข้อเสนอแนะ"
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleCloseEvaluation}>ยกเลิก</Button>
+          <Button variant="contained" color="secondary" onClick={handleConfirmEvaluation}>
+            บันทึกผลประเมิน
+          </Button>
         </DialogActions>
       </Dialog>
 

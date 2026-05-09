@@ -98,13 +98,14 @@ const DashboardPage = () => {
     'รอสถานประกอบการตอบรับ',
   ];
   
-  // Map extended status to steps (0-4)
+    // Map extended status to steps (0-5)
   const getStepIndex = (status) => {
       if (!status) return 0;
       if (['รออาจารย์ที่ปรึกษาอนุมัติ', 'รอผู้ดูแลระบบตรวจสอบ', 'รอผู้ดูแลระบบอนุมัติ'].includes(status)) return 1;
       if (['รอสถานประกอบการตอบรับ'].includes(status)) return 2;
       if (['อนุมัติแล้ว', 'ออกฝึกงาน'].includes(status)) return 3;
-      if (['ฝึกงานเสร็จแล้ว'].includes(status)) return 4;
+      if (['ประเมินเสร็จแล้ว'].includes(status)) return 4;
+      if (['ฝึกงานเสร็จแล้ว'].includes(status)) return 5;
       if (status.includes('ไม่อนุมัติ') || status.includes('ปฏิเสธ')) return 1; 
       return 0;
   };
@@ -116,6 +117,7 @@ const DashboardPage = () => {
     { title: 'รอตรวจสอบ', icon: '🕓︎' },
     { title: 'รอตอบรับ', icon: '📨︎' },
     { title: 'อนุมัติแล้ว', icon: '✅︎' },
+    { title: 'ประเมินหลังฝึกงาน', icon: '🧾︎' },
     { title: 'เสร็จสิ้น', icon: '🏁︎' }
   ];
 
@@ -126,6 +128,7 @@ const DashboardPage = () => {
       'รอผู้ดูแลระบบอนุมัติ': { bg: 'linear-gradient(135deg, #7dd3fc 0%, #0284c7 100%)', color: '#ffffff' },
       'รอสถานประกอบการตอบรับ': { bg: 'linear-gradient(135deg, #c4b5fd 0%, #8b5cf6 100%)', color: '#ffffff' },
       'อนุมัติแล้ว': { bg: 'linear-gradient(135deg, #86efac 0%, #22c55e 100%)', color: '#14532d' },
+      'ประเมินเสร็จแล้ว': { bg: 'linear-gradient(135deg, #c7d2fe 0%, #6366f1 100%)', color: '#1e1b4b' },
       'ไม่อนุมัติ (อาจารย์)': { bg: 'linear-gradient(135deg, #fda4af 0%, #f43f5e 100%)', color: '#ffffff' },
       'ไม่อนุมัติ (Admin)': { bg: 'linear-gradient(135deg, #fb7185 0%, #e11d48 100%)', color: '#ffffff' },
       'ปฏิเสธ': { bg: 'linear-gradient(135deg, #fb7185 0%, #be123c 100%)', color: '#ffffff' },
@@ -209,7 +212,7 @@ const DashboardPage = () => {
     if (internshipRequests.some((request) => request.status === 'ไม่อนุมัติ (Admin)')) {
       list.push('เจ้าหน้าที่ให้แก้ไขข้อมูล');
     }
-    if (internshipRequests.some((request) => request.evaluationCompleted || request.status === 'ฝึกงานเสร็จแล้ว')) {
+    if (internshipRequests.some((request) => request.evaluationCompleted || request.status === 'ประเมินเสร็จแล้ว' || request.status === 'ฝึกงานเสร็จแล้ว')) {
       list.push('ประเมินเสร็จแล้ว');
     }
     return list;

@@ -65,7 +65,8 @@ const AdminDashboardPage = () => {
     const userStr = localStorage.getItem('user');
     if (userStr) {
       const user = JSON.parse(userStr);
-      if (user.role !== 'admin') {
+      const normalizedRole = String(user.role || '').toLowerCase();
+      if (normalizedRole !== 'admin') {
          navigate('/dashboard'); 
          return;
       }
@@ -332,19 +333,17 @@ const AdminDashboardPage = () => {
     setSemesterModal({ open: true, requestId });
   };
 
-  const handleSelectSemester = async (semester) => {
+  const handleConfirmStartInternship = async () => {
     const requestId = semesterModal.requestId;
     setSemesterModal({ open: false, requestId: null });
     try {
-      await api.patch(`/requests/${requestId}/status`, { status: 'ออกฝึกงาน', semester });
-      setAllRequests(allRequests.map(r => String(r.id) === String(requestId) ? {...r, status: 'ออกฝึกงาน', semester} : r));
-      alert(`เริ่มฝึกงาน ภาคเรียนที่ ${semester} เรียบร้อยแล้ว`);
+      await api.patch(`/requests/${requestId}/status`, { status: 'ออกฝึกงาน' });
+      setAllRequests(allRequests.map(r => String(r.id) === String(requestId) ? { ...r, status: 'ออกฝึกงาน' } : r));
+      alert('เริ่มฝึกงานเรียบร้อยแล้ว');
     } catch (err) {
       alert('อัปเดตสถานะล้มเหลว: ' + (err.response?.data?.message || err.message));
     }
   };
-
-  const getBuddhistYear = () => new Date().getFullYear() + 543;
 
   const handleReject = (requestId) => {
     setRejectModal({ open: true, requestId, reason: '' });
@@ -703,7 +702,7 @@ const AdminDashboardPage = () => {
                             <button className="btn-next-step" onClick={() => handleOpenSemesterModal(request.id)} style={{ padding: '5px 10px', background: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>เริ่มฝึกงาน</button>
                           )}
                           {request.status === 'ออกฝึกงาน' && (
-                            <button className="btn-finish" onClick={() => handleUpdateStatus(request.id, 'ฝึกงานเสร็จแล้ว')} style={{ padding: '5px 10px', background: '#48bb78', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>จบการฝึกงาน</button>
+                            <span className="muted-action"></span>
                           )}
                           <Link to={`/dashboard/request/${request.id}`} style={{ padding: '5px 10px', background: '#edf2f7', color: '#4a5568', borderRadius: '4px', textDecoration: 'none', fontSize: '0.9rem', display: 'inline-block', marginLeft: '5px' }}>ดูรายละเอียด</Link>
                         </div>
@@ -744,29 +743,19 @@ const AdminDashboardPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Semester Selection Modal */}
+      {/* Start Internship Confirm Modal */}
       <Dialog open={semesterModal.open} onClose={() => setSemesterModal({ open: false, requestId: null })} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ textAlign: 'center', fontWeight: 700 }}>เลือกภาคเรียนที่ออกฝึกงาน</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, py: 3, alignItems: 'center' }}>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={() => handleSelectSemester(`1/${getBuddhistYear()}`)}
-            sx={{ minWidth: 200, fontWeight: 700, bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' } }}
-          >
-            1/{getBuddhistYear()}
-          </Button>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={() => handleSelectSemester(`2/${getBuddhistYear()}`)}
-            sx={{ minWidth: 200, fontWeight: 700, bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' } }}
-          >
-            2/{getBuddhistYear()}
-          </Button>
+        <DialogTitle sx={{ textAlign: 'center', fontWeight: 700 }}>ยืนยันการเริ่มฝึกงาน</DialogTitle>
+        <DialogContent sx={{ py: 2, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            ต้องการเริ่มสถานะฝึกงานสำหรับคำร้องนี้หรือไม่?
+          </Typography>
         </DialogContent>
         <DialogActions sx={{ justifyContent: 'center', pb: 2 }}>
-          <Button variant="outlined" onClick={() => setSemesterModal({ open: false, requestId: null })}>ยกเลิก</Button>
+          <Button variant="outlined" onClick={() => setSemesterModal({ open: false, requestId: null })}>ไม่ยืนยัน</Button>
+          <Button variant="contained" onClick={handleConfirmStartInternship} sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' } }}>
+            ยืนยัน
+          </Button>
         </DialogActions>
       </Dialog>
 

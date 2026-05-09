@@ -24,6 +24,7 @@ const StudentCheckInPage = () => {
     if (status === 'รออาจารย์ที่ปรึกษาอนุมัติ') return 'รออาจารย์อนุมัติ';
     if (status === 'รอผู้ดูแลระบบอนุมัติ' || status === 'รอผู้ดูแลระบบตรวจสอบ') return 'รอแอดมินอนุมัติ';
     if (status === 'รอสถานประกอบการตอบรับ') return 'รอสถานประกอบการตอบรับ';
+    if (status === 'ประเมินเสร็จแล้ว') return 'ประเมินเสร็จแล้ว';
     if (!status || status === 'ไม่มีคำร้อง') return 'ยังไม่มีคำร้อง';
     return status;
   };
@@ -34,6 +35,9 @@ const StudentCheckInPage = () => {
     }
     if (status === 'อนุมัติแล้ว') {
       return { background: '#e6fffa', color: '#0c5460' };
+    }
+    if (status === 'ประเมินเสร็จแล้ว') {
+      return { background: '#e0e7ff', color: '#312e81' };
     }
     if (status.includes('ไม่อนุมัติ') || status === 'ปฏิเสธ') {
       return { background: '#f8d7da', color: '#721c24' };
